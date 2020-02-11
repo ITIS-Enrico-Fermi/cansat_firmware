@@ -14,9 +14,7 @@
 void app_main() {
     gps_configure(UART_NUM_2);
     
-    //TaskHandle_t gps_location_task;
     xTaskCreate(gps_location_update_handler, "GPS_location_task", 2048, NULL, 10, NULL);
-    //gps_set_location_task_handle(xTaskGetCurrentTaskHandle()); //implemented in configure
     
     EventGroupHandle_t* gps_status = gps_get_status();
     
