@@ -1,23 +1,47 @@
 #include <esp_log.h>
 #include <driver/i2c.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+#include <freertos/task.h>
 #include "bme280.h"
 #include "bme280_i2c.h"
 
 #define TAG  "BME280 I2C"
 
-static s32 com_rstl;
-static bme280_measure last_measure;
-static SemaphoreHandle_t measure_sem;
+static int8_t rslt;
+static struct bme280_dev dev;
+static uint32_t req_delay;
 
-void BME280_delay_msec(u32 msec)
+static SemaphoreHandle_t measure_sem;
+static EventGroupHandle_t bme280_status;
+
+static bme280_data_t last_measure;
+
+static TaskHandle_t handler;
+
+//#pragma region hardware_access_interface
+
+/**
+ * @brief Delays execution of task by spec. milliseconds
+ * Uses FreeRTOS API to put the task in blocked mode for the amount of milliseconds specified
+ * @param msec milliseconds to wait
+ */
+void BME280_delay_msec(uint32_t msec)
 {
     vTaskDelay(msec/portTICK_PERIOD_MS);
 }
 
-s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+/**
+ * @brief I2C bus write function for BME280
+ * @param dev_addr The address of BME280
+ * @param reg_addr Register to write on
+ * @param reg_data Pointer to contiguos data block to write on @reg_addr register
+ * @param cnt @reg_data content lenght
+ * @return int8_t with sensor status
+ */
+int8_t BME280_I2C_bus_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t cnt)
 {
-    s32 bme280_status_error = BME280_INIT_VALUE;
+    int8_t bme280_status_error = 0;
 
     esp_err_t espRc;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -31,18 +55,26 @@ s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 
     espRc = i2c_master_cmd_begin(I2C_NUM_0, cmd, 10/portTICK_PERIOD_MS);
     if (espRc == ESP_OK) {
-        bme280_status_error = SUCCESS;
+        bme280_status_error = 0;
     } else {
-        bme280_status_error = FAIL;
+        bme280_status_error = 1;
     }
     i2c_cmd_link_delete(cmd);
 
-    return (s8)bme280_status_error;
+    return bme280_status_error;
 }
 
-s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+/**
+ * @brief I2C bus write function for BME280
+ * @param dev_addr The address of BME280
+ * @param reg_addr Register to read from
+ * @param reg_data Pointer to buffer to write @reg_addr register content on
+ * @param cnt @reg_data buffer size
+ * @return int8_t with sensor status
+ */
+int8_t BME280_I2C_bus_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t cnt)
 {
-    s32 bme280_status_error = BME280_INIT_VALUE;
+    int32_t bme280_status_error = 0;
     esp_err_t espRc;
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -62,42 +94,19 @@ s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 
     espRc = i2c_master_cmd_begin(I2C_NUM_0, cmd, 10/portTICK_PERIOD_MS);
     if (espRc == ESP_OK) {
-        bme280_status_error = SUCCESS;
+        bme280_status_error = 0;
     } else {
-        bme280_status_error = FAIL;
+        bme280_status_error = 1;
     }
 
     i2c_cmd_link_delete(cmd);
 
-    return (s8)bme280_status_error;
+    return bme280_status_error;
 }
 
-/*void bme280_read_normal(s32 com_rslt, bme280_measure* measure_buffer) {
-    s32 v_uncomp_pressure_s32;
-    s32 v_uncomp_temperature_s32;
-    s32 v_uncomp_humidity_s32;
-    
-    if (com_rslt == SUCCESS) {
-        
-        ESP_LOGI(TAG,"Setup was successfull");
+//#pragma endregion
 
-            com_rslt = bme280_read_uncomp_pressure_temperature_humidity(&v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32); //Actual I2C read
-
-            if (com_rslt == SUCCESS) {
-                measure_buffer->temperature = bme280_compensate_temperature_double(v_uncomp_temperature_s32);
-                measure_buffer->pressure = bme280_compensate_pressure_double(v_uncomp_pressure_s32)/100;
-                measure_buffer->humidity = bme280_compensate_humidity_double(v_uncomp_humidity_s32);
-                ESP_LOGI(TAG, "Measure: %.2f degC / %.3f hPa / %.3f %%", measure_buffer->temperature, measure_buffer->pressure, measure_buffer->humidity);
-
-            } else {
-                ESP_LOGE(TAG, "Measure error. Code: %d", com_rslt);
-            }
-
-    } else {
-        ESP_LOGE(TAG, "Initalization or setting error. Code: %d", com_rslt);
-    }
-}*/
-
+//#pragma region api
 /*
 *   Public API
 */
@@ -113,139 +122,102 @@ void bme280_i2c_init() {
         .master.clk_speed = 400000
     };
 
-    i2c_param_config(I2C_NUM_0, &i2c_conf);
-    i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+    ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &i2c_conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
     
 }
 
-s32 bme280_setup(u8 t_os, u8 p_os, u8 h_os, u8 filter_k) {  //TODO: com_rslt as static global variable
-    struct bme280_t bme280 = {
-        .bus_write = BME280_I2C_bus_write,
-        .bus_read = BME280_I2C_bus_read,
-        .dev_addr = BME280_I2C_ADDRESS,
-        .delay_msec = BME280_delay_msec
+/**
+ * @brief BME280 setup
+ * 
+ * @param t_os Temperature oversampling rate [BME280_OVERSAMPLING_nX]
+ * @param p_os Pressure oversampling rate [BME280_OVERSAMPLING_nX]
+ * @param h_os Humidity oversampling rate [BME280_OVERSAMPLING_nX]
+ * @param filter_k Low-pass filter coefficient [BME280_FILTER_COEFF_n/OFF]
+ * 
+ */
+void bme280_setup(uint8_t t_os, uint8_t p_os, uint8_t h_os, uint8_t filter_k) {  //Temperature Oversampling, Pressure Oversampling, Humidity Oversampling, Filter Coefficient
+    
+    dev = (struct bme280_dev){
+        .dev_id = BME280_I2C_ADDR_PRIM,
+        .intf = BME280_I2C_INTF,
+        .read = BME280_I2C_bus_read,
+        .write = BME280_I2C_bus_write,
+        .delay_ms = BME280_delay_msec,
+        .settings = {
+            .osr_t = t_os,
+            .osr_p = p_os,
+            .osr_h = h_os,
+            .filter = filter_k
+        }
     };
+    uint8_t settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
 
-    com_rslt = bme280_init(&bme280);
+    rslt = BME280_OK;
+    rslt = bme280_init(&dev);
+    rslt = bme280_set_sensor_settings(settings_sel, &dev);
+    rslt = bme280_set_sensor_mode(BME280_NORMAL_MODE, &dev);
 
-    com_rslt += bme280_set_oversamp_temperature(t_os);
-    com_rslt += bme280_set_oversamp_pressure(p_os);
-    com_rslt += bme280_set_oversamp_humidity(h_os);
+    req_delay = bme280_cal_meas_delay(&dev.settings);
 
-    com_rslt += bme280_set_standby_durn(BME280_STANDBY_TIME_10_MS);
-    com_rslt += bme280_set_filter(filter_k);
 
-    com_rslt += bme280_set_power_mode(BME280_NORMAL_MODE);
-    return com_rslt;
-}
+    measure_sem = xSemaphoreCreateBinary();
+    xSemaphoreGive(measure_sem);
 
-void bme280_read_normal() {
-    bme280_measure measure_buffer;
-
-    s32 com_rslt;
-    s32 v_uncomp_pressure_s32;
-    s32 v_uncomp_temperature_s32;
-    s32 v_uncomp_humidity_s32;
-
-    com_rslt = bme280_read_uncomp_pressure_temperature_humidity(
-        &v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32);
-
-    if (com_rslt == SUCCESS) {
-        measure_buffer.temperature = bme280_compensate_temperature_double(v_uncomp_temperature_s32);
-        measure_buffer.pressure = bme280_compensate_pressure_double(v_uncomp_pressure_s32)/100;
-        measure_buffer.humidity = bme280_compensate_humidity_double(v_uncomp_humidity_s32);
-        ESP_LOGI(TAG, "Measure: %.2f degC / %.3f hPa / %.3f %%",
-        measure_buffer.temperature, measure_buffer.pressure, measure_buffer.humidity);
-    } else {
-        ESP_LOGE(TAG, "Measure error. Code: %d", com_rslt);
-    }
-    
-    vTaskDelay(1000/portTICK_PERIOD_MS);    //wait 1 second
+    bme280_status = xEventGroupCreate();
 
 }
 
-
-void task_bme280_normal_mode()
+/**
+ * @brief Measure FreeRTOS task
+ * FreeRTOS task to enable measures cycle and 
+ */
+void bme280_task_normal_mode(void* pv_params)
 {
-    bme280_measure measure_buffer;
-    s32 v_uncomp_pressure_s32, v_uncomp_temperature_s32, v_uncomp_humidity_s32;
+    struct bme280_data comp_data;
 
-    if (com_rslt == SUCCESS) {
+    if (rslt == BME280_OK) {
+
         while(true) {
 
-            com_rslt = bme280_read_uncomp_pressure_temperature_humidity(
-                &v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32);
+            dev.delay_ms(req_delay);
+            
+            rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
+            xSemaphoreTake(measure_sem, req_delay/portTICK_PERIOD_MS);
+            last_measure = comp_data;
+            xSemaphoreGive(measure_sem);
+            xTaskNotify(handler, BME280_MEASURE_UPDATED, eSetBits);
+            ESP_LOGD(TAG, "T: %.2f, P: %.2f, h: %.2f\n", comp_data.temperature, comp_data.pressure, comp_data.humidity);
 
-            if (com_rslt == SUCCESS) {
-                measure_buffer.temperature = bme280_compensate_temperature_double(v_uncomp_temperature_s32);
-                measure_buffer.pressure = bme280_compensate_pressure_double(v_uncomp_pressure_s32)/100;
-                measure_buffer.humidity = bme280_compensate_humidity_double(v_uncomp_humidity_s32);
-                xSemaphoreTake(measure_sem, 1000/portTICK_PERIOD_MS);
-                last_measure = measure_buffer;
-                xSemaphoreGive(measure_sem);
-                ESP_LOGD(TAG, "Measure: %.2f degC / %.3f hPa / %.3f %%",
-                    measure_buffer.temperature, measure_buffer.pressure, measure_buffer.humidity);
-            } else {
-                ESP_LOGE(TAG, "Measure error. Code: %d", com_rslt);
-            }
-
-            vTaskDelay(1000/portTICK_PERIOD_MS);
         }
     } else {
-        ESP_LOGE(TAG, "Initalization or setting error. Code: %d", com_rslt);
+        ESP_LOGE(TAG, "Initalization or setting error. Code: %d", rslt);
     }
 
     vTaskDelete(NULL);
 }
 
-bme280_measure bme280_get_last_measure() {
-    xSemaphoreTake(measure_sem, 1000/portTICK_PERIOD_MS);
-    bme280_measure buffer = measure_sem;
+bme280_data_t bme280_get_last_measure() {
+    xSemaphoreTake(measure_sem, req_delay/portTICK_PERIOD_MS);
+    bme280_data_t buffer = last_measure;
     xSemaphoreGive(measure_sem);
     return buffer;
 }
 
+EventGroupHandle_t* bme280_get_status() {
+    return &bme280_status;
+}
+
+void bme280_register_handler(TaskHandle_t _handler) {
+    handler = _handler;
+}
+
+void bme280_set_delay(uint32_t delay_ms) {
+    req_delay = delay_ms;
+}
+//#pragma endregion
+
 /*
-void task_bme280_forced_mode(void *ignore) {
-    bme280_measure measure_buffer;
-    struct bme280_t bme280 = {
-        .bus_write = BME280_I2C_bus_write,
-        .bus_read = BME280_I2C_bus_read,
-        .dev_addr = BME280_I2C_ADDRESS,
-        .delay_msec = BME280_delay_msec
-    };
-
-    s32 com_rslt;
-    s32 v_uncomp_pressure_s32;
-    s32 v_uncomp_temperature_s32;
-    s32 v_uncomp_humidity_s32;
-
-    com_rslt = bme280_init(&bme280);
-
-    com_rslt += bme280_set_oversamp_pressure(BME280_OVERSAMP_1X);
-    com_rslt += bme280_set_oversamp_temperature(BME280_OVERSAMP_1X);
-    com_rslt += bme280_set_oversamp_humidity(BME280_OVERSAMP_1X);
-
-    com_rslt += bme280_set_filter(BME280_FILTER_COEFF_OFF);
-    if (com_rslt == SUCCESS) {
-        while(true) {
-            com_rslt = bme280_get_forced_uncomp_pressure_temperature_humidity(
-                &v_uncomp_pressure_s32, &v_uncomp_temperature_s32, &v_uncomp_humidity_s32);
-
-                if (com_rslt == SUCCESS) {
-                    measure_buffer.temperature = bme280_compensate_temperature_double(v_uncomp_temperature_s32);
-                    measure_buffer.pressure = bme280_compensate_pressure_double(v_uncomp_pressure_s32)/100;
-                    measure_buffer.humidity = bme280_compensate_humidity_double(v_uncomp_humidity_s32);
-                    ESP_LOGI(TAG, "Measure: %.2f degC / %.3f hPa / %.3f %%",
-                        measure_buffer.temperature, measure_buffer.pressure, measure_buffer.humidity);
-                    //mqtt_publish_measure(&measure_buffer);
-                } else {
-                    ESP_LOGE(TAG, "Measure error. Code: %d", com_rslt);
-                }
-            }
-        } else {
-            ESP_LOGE(TAG, "Initalization or setting error. Code: %d", com_rslt);
-        }
-
-    vTaskDelete(NULL);
-}*/
+    SDA     21
+    SCL     22
+*/

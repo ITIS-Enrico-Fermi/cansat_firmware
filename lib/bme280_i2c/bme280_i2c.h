@@ -1,29 +1,29 @@
-#include "bme280.h"
+/*
+Connection BME280 ----------> ESP32
+            SCL   ----------> PIN 22
+            SDA   ----------> PIN 21
+*/
 
 #ifndef BME280_I2C_H__
 #define BME280_I2C_H__
 
-#ifndef BME280_I2C_ADDRESS
-#define BME280_I2C_ADDRESS BME280_I2C_ADDRESS1
-#endif
+#include "bme280.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-typedef struct {
-    double temperature;
-    double pressure;
-    double humidity;
-} bme280_measure;
+typedef struct bme280_data bme280_data_t;
 
 //Configuration
 void bme280_i2c_init(); //Enable I2C controller
-s32 bme280_setup(u8 t_os, u8 p_os, u8 h_os, u8 filter_k);    //BME280_OVERSAMP_nX as params and BME280_FILTER_COEFF_n for filter coefficient
-
-
-void bme280_read_normal();//s32, bme280_measure*);
+void bme280_setup(uint8_t t_os, uint8_t p_os, uint8_t h_os, uint8_t filter_k);    //BME280_OVERSAMP_nX as params and BME280_FILTER_COEFF_n for filter coefficient
+void bme280_set_delay(uint32_t delay_ms);
 
 //  FreeRTOS tasks
-void task_bme280_normal_mode();
-bme280_measure bme280_get_last_measure();
+void bme280_task_normal_mode(void* pv_params);
+bme280_data_t bme280_get_last_measure();
 //void task_bme280_forced_mode(void *ignore);
 
+#define BME280_MEASURE_UPDATED 0x01
+void bme280_register_handler(TaskHandle_t handler);
  
 #endif
