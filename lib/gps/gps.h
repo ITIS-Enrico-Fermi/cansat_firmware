@@ -27,3 +27,8 @@ _Bool gps_get_current_position(gps_position_t* position_buffer);
 EventGroupHandle_t* gps_get_status();
 
 #endif /* gps_h */
+
+/*
+RX to pin 17 TX2
+TX to pin 16 RX2
+*/
