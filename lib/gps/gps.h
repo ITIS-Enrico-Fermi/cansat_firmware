@@ -27,7 +27,7 @@ typedef struct {
     EventGroupHandle_t gps_status;
 } GPSConfig_t;
 
-void gps_configure(GPSConfig_t *config);
+void gps_setup(GPSConfig_t *config);
 void gps_task(void *pvParameters);
 
 typedef struct minmea_sentence_gga gps_position_t;

@@ -17,7 +17,6 @@
 #define RX_BUF_SIZE 1024
 #define TAG "GPS"
 
-static uart_port_t uart_controller;
 static gps_position_t current_position;
 static SemaphoreHandle_t position_semaphore = NULL;
 static TaskHandle_t location_task_handle;
@@ -25,7 +24,7 @@ static EventGroupHandle_t gps_status;
 
 static GPSConfig_t config;
 
-void gps_configure(GPSConfig_t *global_config) {
+void gps_setup(GPSConfig_t *global_config) {
     memcpy(&config, global_config, sizeof(GPSConfig_t));
 
     //UART settings
@@ -143,8 +142,4 @@ _Bool gps_get_current_position(gps_position_t* position_buffer) {
         ESP_LOGE(TAG, "Couldn't take semaphore lock within 10 ticks. Secure access to current position can't be made");
         return false;
     }
-}
-
-EventGroupHandle_t* gps_get_status() {
-    return &gps_status;
 }

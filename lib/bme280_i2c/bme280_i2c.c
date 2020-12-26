@@ -136,8 +136,15 @@ void bme280_i2c_init() {
  * @param filter_k Low-pass filter coefficient [BME280_FILTER_COEFF_n/OFF]
  * 
  */
-void bme280_setup(uint8_t t_os, uint8_t p_os, uint8_t h_os, uint8_t filter_k) {  //Temperature Oversampling, Pressure Oversampling, Humidity Oversampling, Filter Coefficient
+void bme280_setup(bme280_config_t *config) {  //Temperature Oversampling, Pressure Oversampling, Humidity Oversampling, Filter Coefficient
     
+    uint8_t t_os = config->t_os;
+    uint8_t p_os = config->p_os;
+    uint8_t h_os = config->h_os;
+    uint8_t filter_k = config->filter_k;
+
+    handler = config->parent_task;
+
     dev = (struct bme280_dev){
         .dev_id = BME280_I2C_ADDR_PRIM,
         .intf = BME280_I2C_INTF,
@@ -166,6 +173,8 @@ void bme280_setup(uint8_t t_os, uint8_t p_os, uint8_t h_os, uint8_t filter_k) { 
 
     bme280_status = xEventGroupCreate();
 
+    bme280_set_delay(config->delay);
+
 }
 
 /**
@@ -187,7 +196,7 @@ void bme280_task_normal_mode(void* pv_params)
             last_measure = comp_data;
             xSemaphoreGive(measure_sem);
             xTaskNotify(handler, BME280_MEASURE_UPDATED, eSetBits);
-            ESP_LOGD(TAG, "T: %.2f, P: %.2f, h: %.2f\n", comp_data.temperature, comp_data.pressure, comp_data.humidity);
+            ESP_LOGD(TAG, "T: %.2f, P: %.2f, h: %.2f", comp_data.temperature, comp_data.pressure, comp_data.humidity);
 
         }
     } else {
