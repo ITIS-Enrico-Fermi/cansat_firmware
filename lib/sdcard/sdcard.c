@@ -8,7 +8,7 @@
 void sdcard_init() {
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.slot = VSPI_HOST;
+    host.max_freq_khz = 100;    //TODO: parametrize at system level
 
     sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
     slot_config.gpio_miso = 34;
@@ -21,7 +21,7 @@ void sdcard_init() {
         .max_files = 5
     };
 
-    sdmmc_card_t* card;
+    sdmmc_card_t *card;
 
     ESP_ERROR_CHECK(esp_vfs_fat_sdmmc_mount(SD_MOUNTPOINT, &host, &slot_config, &mount_config, &card));
 
