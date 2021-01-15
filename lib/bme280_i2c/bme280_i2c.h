@@ -7,9 +7,9 @@ Connection BME280 ----------> ESP32
 #ifndef BME280_I2C_H__
 #define BME280_I2C_H__
 
-#include "bme280.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "bme280.h"
 
 typedef struct bme280_data bme280_data_t;
 typedef struct {
@@ -18,8 +18,9 @@ typedef struct {
     uint8_t h_os;
     uint8_t filter_k;
     TaskHandle_t parent_task;
-    EventGroupHandle_t sync_barrier;
     int delay;
+    EventGroupHandle_t sync_barrier;
+    size_t sync_id;
 } bme280_config_t;
 
 //Configuration

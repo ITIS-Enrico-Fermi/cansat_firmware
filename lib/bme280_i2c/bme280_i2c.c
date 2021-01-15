@@ -1,8 +1,8 @@
-#include <esp_log.h>
-#include <driver/i2c.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
+#include <esp_log.h>
+#include <driver/i2c.h>
 #include "bme280.h"
 #include "bme280_i2c.h"
 
@@ -14,6 +14,8 @@ static uint32_t req_delay;
 
 static SemaphoreHandle_t measure_sem;
 static EventGroupHandle_t bme280_status;
+static EventGroupHandle_t sync_barrier;
+static int sync_id;
 
 static bme280_data_t last_measure;
 
@@ -171,6 +173,9 @@ void bme280_setup(bme280_config_t *config) {  //Temperature Oversampling, Pressu
     measure_sem = xSemaphoreCreateBinary();
     xSemaphoreGive(measure_sem);
 
+    sync_barrier = config->sync_barrier;
+    sync_id = config->sync_id;
+
     bme280_status = xEventGroupCreate();
 
     bme280_set_delay(config->delay);
@@ -195,7 +200,7 @@ void bme280_task_normal_mode(void* pv_params)
             xSemaphoreTake(measure_sem, req_delay/portTICK_PERIOD_MS);
             last_measure = comp_data;
             xSemaphoreGive(measure_sem);
-            xTaskNotify(handler, BME280_MEASURE_UPDATED, eSetBits);
+            xEventGroupSetBits(sync_barrier, sync_id);
             ESP_LOGD(TAG, "T: %.2f, P: %.2f, h: %.2f", comp_data.temperature, comp_data.pressure, comp_data.humidity);
 
         }

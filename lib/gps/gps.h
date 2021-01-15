@@ -5,6 +5,7 @@
 //  Created by Giulio Corradini on 26/01/2020.
 //
 
+#include "stdbool.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "driver/uart.h"
@@ -17,21 +18,28 @@
 extern "C" {
 #endif
 
-#define GPS_FIXED_POSITION      0x01
-#define GPS_LOCATION_UPDATED    0x01
+typedef enum {
+    GPS_FIXED_POSITION      =   (0x01 << 0),
+    GPS_LOCATION_UPDATED    =   (0x01 << 1),
+    GPS_STATUS_TOTAL
+} GPSStatus_t;
 
 typedef struct {
     uart_port_t uart_controller_port;
     TaskHandle_t parent_task;
-    EventGroupHandle_t sync_barrier;
     EventGroupHandle_t gps_status;
+    EventGroupHandle_t sync_barrier;
+    size_t sync_id;
 } GPSConfig_t;
 
-void gps_setup(GPSConfig_t *config);
+typedef void* GPSDevice_t;
+
+GPSDevice_t gps_setup_new(GPSConfig_t *config);
 void gps_task(void *pvParameters);
+void gps_free(GPSDevice_t dev);
 
 typedef struct minmea_sentence_gga gps_position_t;
-_Bool gps_get_current_position(gps_position_t* position_buffer);
+bool gps_get_current_position(GPSDevice_t dev, gps_position_t* dst);
 
 
 #ifdef __cplusplus
