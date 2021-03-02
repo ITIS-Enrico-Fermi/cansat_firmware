@@ -98,7 +98,7 @@ void prepare_payload_task(void *params) {
             bme280_data_t *amb = &payload.ambient;
             sprintf(out_buf, "T: %.2f, P: %.2f, h: %.2f", amb->temperature, amb->pressure, amb->humidity);
             printf("%s\n", out_buf);
-            fprintf(log_stream, "%s\t", out_buf);
+            //fprintf(log_stream, "%s\t", out_buf);
         }
 
         if(payload.contains && DEV_GPS) {
@@ -108,14 +108,14 @@ void prepare_payload_task(void *params) {
                 "Latitude: %.6f, Longitude: %.6f, Altitude: %.6f, Fix quality: %d",
                 minmea_tocoord(&pos->latitude),
                 minmea_tocoord(&pos->longitude),
-                minmea_tocoord(&pos->altitude),
+                minmea_tofloat(&pos->altitude),
                 pos->fix_quality
             );
             printf("%s\n", out_buf);
-            fprintf(log_stream, "%s\n", out_buf);
+            //fprintf(log_stream, "%s\n", out_buf);
         }
 
-        fflush(log_stream);
+        //fflush(log_stream);
 
         }
 
@@ -153,11 +153,11 @@ void app_main() {
     GPSDevice_t gps = gps_setup_new(&gps_config);
     xTaskCreate(gps_task, "GPS_location_task", 4096, (void*)gps, 10, NULL);
 
-    sdcard_init();
+    //sdcard_init();
 
-    log_stream = fopen("/sdcard/cansat.txt", "a");
+    //log_stream = fopen("/sdcard/cansat.txt", "a");
 
-    fprintf(log_stream, "Started writing\n");
+    //fprintf(log_stream, "Started writing\n");
     
     while(xEventGroupWaitBits(gps_status, GPS_FIXED_POSITION, pdFALSE, pdFALSE, pdMS_TO_TICKS(1000)) == pdFALSE);
 
