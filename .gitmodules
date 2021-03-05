@@ -1,3 +1,0 @@
-[submodule "lib/embedded-sps"]
-	path = lib/embedded-sps
-	url = https://github.com/Sensirion/embedded-sps
