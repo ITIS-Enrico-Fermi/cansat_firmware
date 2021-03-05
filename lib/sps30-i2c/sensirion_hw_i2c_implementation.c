@@ -36,7 +36,7 @@
 #include "driver/i2c.h"
 #include "esp_log.h"
 
-#include <stdio.h>
+#define TAG "SPS30 I2C HAL"
 
 #define READ_ADDRESS(x) ((x << 1) | I2C_MASTER_READ)
 #define WRITE_ADDRESS(x) ((x << 1) | I2C_MASTER_WRITE)
@@ -61,10 +61,8 @@ static i2c_port_t bus;
  * @returns         0 on success, an error code otherwise
  */
 int16_t sensirion_i2c_select_bus(uint8_t bus_idx) {
-    if(bus_idx == 0)
-        bus = I2C_NUM_0;
-    else
-        bus = bus_idx;
+    bus = (uint8_t)bus_idx;
+
     return 0;
 }
 
@@ -73,7 +71,8 @@ int16_t sensirion_i2c_select_bus(uint8_t bus_idx) {
  * communication.
  */
 void sensirion_i2c_init(void) {
-    ESP_LOGD("I2C SPS30", "Using i2c_hw");
+
+    ESP_LOGD(TAG, "Using I2C hardware-mode");
 
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
@@ -105,7 +104,6 @@ void sensirion_i2c_release(void) {
  * @returns 0 on success, error code otherwise
  */
 int8_t sensirion_i2c_read(uint8_t address, uint8_t* data, uint16_t count) {
-    printf("Addr: 0x%02x, count: %d\n", address, count);
 
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -113,16 +111,11 @@ int8_t sensirion_i2c_read(uint8_t address, uint8_t* data, uint16_t count) {
     i2c_master_read(cmd, data, count, false);
     i2c_master_stop(cmd);
     
-    esp_err_t cmd_status = i2c_master_cmd_begin(bus, cmd, 100 / portTICK_RATE_MS);
+    esp_err_t cmd_status = i2c_master_cmd_begin(bus, cmd, 500 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
 
-    for(int i=0; i<count; i++) {
-        printf("%02x ", data[i]);
-    }
-    putchar('\n');
-
     if(cmd_status)
-        ESP_LOGD("I2C", "Read command, ret code: %x", cmd_status);
+        ESP_LOGD(TAG, "Read command failed, return code: 0x%x", cmd_status);
 
     return cmd_status;
 }
@@ -140,15 +133,6 @@ int8_t sensirion_i2c_read(uint8_t address, uint8_t* data, uint16_t count) {
  */
 int8_t sensirion_i2c_write(uint8_t address, const uint8_t* data,
                            uint16_t count) {
-
-    printf("Addr: 0x%02x, count: %d\n", address, count);
-    printf("Command: ");
-    for(int i=0; i<count; i++) {
-        printf("%02x ", data[i]);
-    }
-    putchar('\n');
-
-
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, WRITE_ADDRESS(address), true);
@@ -159,7 +143,7 @@ int8_t sensirion_i2c_write(uint8_t address, const uint8_t* data,
     i2c_cmd_link_delete(cmd);
 
     if(cmd_status)
-        ESP_LOGD("I2C", "Write command, ret code: %x", cmd_status);
+        ESP_LOGD(TAG, "Read command failed, return code: 0x%x", cmd_status);
 
     return cmd_status;
 }
