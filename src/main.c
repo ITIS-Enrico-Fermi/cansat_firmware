@@ -3,22 +3,24 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/event_groups.h>
+#include <freertos/queue.h>
 #include "esp_log.h"
 #include "driver/gpio.h"
 
 #define TAG "Main"
 
-#include "gps.h"
-#include "driver/uart.h"
-
-#include "i2c/i2c.h"
-#include "bme280_i2c.h"
-#include "bme280.h"
-
 #include "spi/spi.h"
 #include "sdcard.h"
 
+#include "bme280.h"
+#include "bme280_i2c.h"
+#include "gps.h"
+
+#include "driver/i2c.h"
+
 #include "devices.h"
+
+#include "sps30.h"
 
 FILE *log_stream;
 
@@ -28,6 +30,7 @@ typedef struct {
     EventBits_t contains;
     bme280_data_t ambient;
     gps_position_t position;
+    struct sps30_measurement partmatter;
 } Payload_t;
 
 
@@ -35,6 +38,7 @@ struct query_sensors_params {
     QueueHandle_t pipeline;
     EventGroupHandle_t dev_barrier;
     GPSDevice_t gps_dev;
+    QueueHandle_t pm_queue;
 };
 void query_sensors_task(void *params) {
 
@@ -50,7 +54,7 @@ void query_sensors_task(void *params) {
 
         EventBits_t ready = xEventGroupWaitBits(
             devices_barrier,
-            DEV_BME280 | DEV_GPS,
+            DEV_SPS30,//DEV_BME280 | DEV_GPS,
             pdTRUE,
             pdFALSE,
             1000
@@ -72,6 +76,13 @@ void query_sensors_task(void *params) {
             payload.position = position;
         }
 
+        if(ready && DEV_SPS30) {
+            struct sps30_measurement partmatter;
+            xQueueReceive(parameters->pm_queue, &partmatter, 100 / portTICK_RATE_MS);
+
+            payload.partmatter = partmatter;
+        }
+
         payload.contains = ready;
 
         xQueueSend(pipeline, &payload, 100 / portTICK_PERIOD_MS);
@@ -87,7 +98,7 @@ void prepare_payload_task(void *params) {
     QueueHandle_t pipeline = (QueueHandle_t)params;
 
     Payload_t payload;
-    char out_buf[150];
+    char out_buf[1000];
 
     while(true) {
         
@@ -115,6 +126,27 @@ void prepare_payload_task(void *params) {
             //fprintf(log_stream, "%s\n", out_buf);
         }
 
+        if(payload.contains && DEV_SPS30) {
+            struct sps30_measurement *pm = &payload.partmatter;
+            sprintf(
+                out_buf,
+                "measured values:\n"
+                "\t%0.2f pm1.0\n"
+                "\t%0.2f pm2.5\n"
+                "\t%0.2f pm4.0\n"
+                "\t%0.2f pm10.0\n"
+                "\t%0.2f nc0.5\n"
+                "\t%0.2f nc1.0\n"
+                "\t%0.2f nc2.5\n"
+                "\t%0.2f nc4.5\n"
+                "\t%0.2f nc10.0\n"
+                "\t%0.2f typical particle size\n",
+                pm->mc_1p0, pm->mc_2p5, pm->mc_4p0, pm->mc_10p0, pm->nc_0p5, pm->nc_1p0,
+                pm->nc_2p5, pm->nc_4p0, pm->nc_10p0, pm->typical_particle_size
+            );
+            printf("%s\n", out_buf);
+        }
+
         //fflush(log_stream);
 
         }
@@ -122,55 +154,80 @@ void prepare_payload_task(void *params) {
     }
 }
 
+void sps30_task(void *pvParameters) {
+    int16_t ret;
+    struct sps30_measurement m;
+
+    struct query_sensors_params *env = (struct query_sensors_params *)pvParameters;
+
+    sensirion_i2c_select_bus(I2C_NUM_0);
+    sensirion_i2c_init();
+
+    while(sps30_probe() != 0) {
+        ESP_LOGW(TAG, "SPS30 probing failed.");
+        sensirion_sleep_usec(1000000);
+    }
+    ESP_LOGI(TAG, "SPS30 successful probing.");
+
+    uint8_t fw_major, fw_minor;
+    ret = sps30_read_firmware_version(&fw_major, &fw_minor);
+    if(ret) {
+        ESP_LOGW(TAG, "SPS30 error reading firmware");
+    } else {
+        ESP_LOGD(TAG, "SPS30 firmware version %u.%u", fw_major, fw_minor);
+    }
+
+    ret = sps30_start_measurement();
+    if(ret)
+        ESP_LOGE(TAG, "SPS30 Error starting measurement");
+    ESP_LOGD(TAG, "SPS30 Started measurement");
+
+    while(1) {
+        sensirion_sleep_usec(SPS30_MEASUREMENT_DURATION_USEC);
+        ret = sps30_read_measurement(&m);
+
+        if(ret < 0) {
+            ESP_LOGW(TAG, "SPS30 Cannot retrieve last measurement");
+        } else {
+            ESP_LOGI(TAG, "measured values:\n"
+                   "\t%0.2f pm1.0\n"
+                   "\t%0.2f pm2.5\n"
+                   "\t%0.2f pm4.0\n"
+                   "\t%0.2f pm10.0\n"
+                   "\t%0.2f nc0.5\n"
+                   "\t%0.2f nc1.0\n"
+                   "\t%0.2f nc2.5\n"
+                   "\t%0.2f nc4.5\n"
+                   "\t%0.2f nc10.0\n"
+                   "\t%0.2f typical particle size\n",
+                   m.mc_1p0, m.mc_2p5, m.mc_4p0, m.mc_10p0, m.nc_0p5, m.nc_1p0,
+                   m.nc_2p5, m.nc_4p0, m.nc_10p0, m.typical_particle_size);
+
+            //xQueueSend(env->pm_queue, &m, 100 / portTICK_RATE_MS);
+            //xEventGroupSetBits(env->dev_barrier, DEV_SPS30);
+        }
+    }
+
+    vTaskDelete(NULL);
+}
 
 void app_main() {
     EventGroupHandle_t device_barrier = xEventGroupCreate();
 
-    i2c_init();
-
-    bme280_config_t bme280_config = {
-        .t_os = BME280_OVERSAMPLING_4X,
-        .p_os = BME280_OVERSAMPLING_1X,
-        .h_os = BME280_OVERSAMPLING_16X,
-        .filter_k = BME280_FILTER_COEFF_8,
-        .parent_task = xTaskGetCurrentTaskHandle(),
-        .delay = 1000,
-        .sync_barrier = device_barrier,
-        .sync_id = DEV_BME280,
-    };
-    bme280_setup(&bme280_config);
-    xTaskCreate(bme280_task_normal_mode, "bme280", 2048, NULL, 10, NULL);
-
-
-    EventGroupHandle_t gps_status = xEventGroupCreate();
-    GPSConfig_t gps_config = (GPSConfig_t){
-        .uart_controller_port = UART_NUM_2,
-        .parent_task = xTaskGetCurrentTaskHandle(),
-        .gps_status = gps_status,
-        .sync_barrier = device_barrier,
-        .sync_id = DEV_GPS
-    };
-    GPSDevice_t gps = gps_setup_new(&gps_config);
-    xTaskCreate(gps_task, "GPS_location_task", 4096, (void*)gps, 10, NULL);
-
-    //sdcard_init();
-
-    //log_stream = fopen("/sdcard/cansat.txt", "a");
-
-    //fprintf(log_stream, "Started writing\n");
-    
-    while(xEventGroupWaitBits(gps_status, GPS_FIXED_POSITION, pdFALSE, pdFALSE, pdMS_TO_TICKS(1000)) == pdFALSE);
-
     QueueHandle_t pipeline = xQueueCreate(10, sizeof(Payload_t));
+    QueueHandle_t pm_queue = xQueueCreate(10, sizeof(struct sps30_measurement));
 
     ESP_LOGI(TAG, "Let's start our tasks");
 
     struct query_sensors_params qstask_params = {
-        .pipeline=pipeline,
-        .dev_barrier=device_barrier,
-        .gps_dev=gps
+        .pipeline       = pipeline,
+        .dev_barrier    = device_barrier,
+        .gps_dev        = NULL,
+        .pm_queue       = pm_queue
     };
     xTaskCreate(query_sensors_task, "query_sensors", 4096, (void*)&qstask_params, 10, NULL);        //Query sensors
     xTaskCreate(prepare_payload_task, "prepare_payload", 4096, pipeline, 10, NULL);                 //Prepare payload for tx
+
+    xTaskCreate(sps30_task, "sps30", 4096, (void*)&qstask_params, 10, NULL);
 
 }
