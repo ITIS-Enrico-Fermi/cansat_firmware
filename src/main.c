@@ -21,11 +21,10 @@
 #include "devices.h"
 
 #include "sps30.h"
+#include "sps30-query.h"
 
-/*
-FILE *log_stream;
-struct sps30_measurement sps30_last_measure;
-EventGroupHandle_t device_barrier;*/
+
+//FILE *log_stream;
 
 typedef struct {
     int timestamp;
@@ -41,9 +40,6 @@ struct task_parameters {
     GPSDevice_t gps_dev;
     QueueHandle_t pm_queue;
 };
-
-
-
 struct task_parameters task_params;
 
 
@@ -164,51 +160,6 @@ void prepare_payload_task(void *pvParameters) {
     }
 }
 
-void sps30_task(void *pvParameters) {
-    int16_t ret;
-    struct sps30_measurement m;
-
-    struct task_parameters *tp = (struct task_parameters *)pvParameters;
-
-    EventGroupHandle_t devices_barrier = tp->dev_barrier;
-
-    sensirion_i2c_select_bus(I2C_NUM_0);
-    sensirion_i2c_init();
-
-    while(sps30_probe() != 0) {
-        ESP_LOGW(TAG, "SPS30 probing failed.");
-        sensirion_sleep_usec(1000000);
-    }
-    ESP_LOGI(TAG, "SPS30 successful probing.");
-
-    uint8_t fw_major, fw_minor;
-    ret = sps30_read_firmware_version(&fw_major, &fw_minor);
-    if(ret) {
-        ESP_LOGW(TAG, "SPS30 error reading firmware");
-    } else {
-        ESP_LOGD(TAG, "SPS30 firmware version %u.%u", fw_major, fw_minor);
-    }
-
-    ret = sps30_start_measurement();
-    if(ret)
-        ESP_LOGE(TAG, "SPS30 Error starting measurement");
-    ESP_LOGD(TAG, "SPS30 Started measurement");
-
-    while(true) {
-        sensirion_sleep_usec(SPS30_MEASUREMENT_DURATION_USEC);
-        ret = sps30_read_measurement(&m);
-
-        if(ret < 0) {
-            ESP_LOGW(TAG, "SPS30 Cannot retrieve last measurement");
-        } else {
-            xQueueSend(tp->pm_queue, &m, 100 / portTICK_RATE_MS);
-            xEventGroupSetBits(devices_barrier, DEV_SPS30);
-        }
-    }
-
-    vTaskDelete(NULL);
-}
-
 
 void app_main() {
 
@@ -218,7 +169,12 @@ void app_main() {
         .pm_queue       = xQueueCreate(10, sizeof(struct sps30_measurement))
     };
 
-    xTaskCreate(sps30_task, "sps30", 2048, &task_params, 1, NULL);
+    struct sps30_task_parameters sps30_params = {
+        .dev_barrier = task_params.dev_barrier,
+        .pm_queue = task_params.pm_queue
+    };
+    xTaskCreate(sps30_task, "sps30", 2048, &sps30_params, 1, NULL);
+
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
     xTaskCreate(prepare_payload_task, "payload", 4096, &task_params, 1, NULL);
     
