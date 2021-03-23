@@ -19,7 +19,9 @@ void sps30_task(void *pvParameters) {
     QueueHandle_t pm_queue = (QueueHandle_t)tp->pm_queue;
 
     sensirion_i2c_select_bus(I2C_NUM_0);
+    #ifdef SPS30_I2C_ALONE
     sensirion_i2c_init();
+    #endif
 
     while(sps30_probe() != 0) {
         ESP_LOGW(TAG, "Probing failed. Retrying...");
@@ -29,7 +31,7 @@ void sps30_task(void *pvParameters) {
 
     uint8_t fw_major, fw_minor;
     if(sps30_read_firmware_version(&fw_major, &fw_minor)) {
-        ESP_LOGW(TAG, "Error reading firmware");
+        ESP_LOGW(TAG, "Error reading firmware version");
     } else {
         ESP_LOGD(TAG, "Firmware version %u.%u", fw_major, fw_minor);
     }
@@ -47,7 +49,7 @@ void sps30_task(void *pvParameters) {
             ESP_LOGW(TAG, "SPS30 Cannot retrieve last measurement");
         } else {
             xQueueSend(pm_queue, &m, 100 / portTICK_RATE_MS);
-            xEventGroupSetBits(devices_barrier, DEV_SPS30);
+            xEventGroupSetBits(devices_barrier, tp->device_id);
         }
     }
 

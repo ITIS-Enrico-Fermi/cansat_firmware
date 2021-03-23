@@ -23,6 +23,7 @@
 #include "sps30.h"
 #include "sps30-query.h"
 
+#include "i2c/i2c.h"
 
 //FILE *log_stream;
 
@@ -169,11 +170,27 @@ void app_main() {
         .pm_queue       = xQueueCreate(10, sizeof(struct sps30_measurement))
     };
 
+    i2c_init();
+
     struct sps30_task_parameters sps30_params = {
         .dev_barrier = task_params.dev_barrier,
-        .pm_queue = task_params.pm_queue
+        .pm_queue = task_params.pm_queue,
+        .device_id = DEV_SPS30
     };
     xTaskCreate(sps30_task, "sps30", 2048, &sps30_params, 1, NULL);
+
+    bme280_config_t bme280_config = {
+        .t_os = BME280_OVERSAMPLING_4X,
+        .p_os = BME280_OVERSAMPLING_1X,
+        .h_os = BME280_OVERSAMPLING_16X,
+        .filter_k = BME280_FILTER_COEFF_8,
+        .parent_task = xTaskGetCurrentTaskHandle(),
+        .delay = 1000,
+        .sync_barrier = task_params.dev_barrier,
+        .sync_id = DEV_BME280,
+    };
+    bme280_setup(&bme280_config);
+    xTaskCreate(bme280_task_normal_mode, "bme280", 2048, NULL, 10, NULL);
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
     xTaskCreate(prepare_payload_task, "payload", 4096, &task_params, 1, NULL);

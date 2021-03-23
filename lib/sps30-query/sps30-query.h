@@ -6,6 +6,7 @@
 struct sps30_task_parameters {
     void    *dev_barrier;
     void    *pm_queue;
+    int     device_id;
 };
 
 void sps30_task(void *pvParameters);
