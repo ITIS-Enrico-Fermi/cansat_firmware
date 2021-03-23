@@ -9,6 +9,8 @@ struct sps30_task_parameters {
     int     device_id;
 };
 
+#define SPS30_I2C_ALONE
+
 void sps30_task(void *pvParameters);
 
 #endif  //__SPS30_QUERY_H

@@ -18,9 +18,11 @@ void sps30_task(void *pvParameters) {
     EventGroupHandle_t devices_barrier = (EventGroupHandle_t)tp->dev_barrier;
     QueueHandle_t pm_queue = (QueueHandle_t)tp->pm_queue;
 
-    sensirion_i2c_select_bus(I2C_NUM_0);
     #ifdef SPS30_I2C_ALONE
+    sensirion_i2c_select_bus(I2C_NUM_1);
     sensirion_i2c_init();
+    #else
+    sensirion_i2c_select_bus(I2C_NUM_0);
     #endif
 
     while(sps30_probe() != 0) {

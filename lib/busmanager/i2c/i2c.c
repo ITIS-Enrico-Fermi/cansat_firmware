@@ -12,11 +12,11 @@
 void i2c_init() {
     i2c_config_t i2c_conf = {
         .mode = I2C_MODE_MASTER,
-        .sda_io_num = GPIO_NUM_21,
+        .sda_io_num = GPIO_NUM_4,
         .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_io_num = GPIO_NUM_22,
+        .scl_io_num = GPIO_NUM_26,  //TODO: change to GPIO_NUM_0
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 100000
+        .master.clk_speed = 400000
     };
 
     ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &i2c_conf));
