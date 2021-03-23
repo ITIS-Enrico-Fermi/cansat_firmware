@@ -192,6 +192,16 @@ void app_main() {
     bme280_setup(&bme280_config);
     xTaskCreate(bme280_task_normal_mode, "bme280", 2048, NULL, 10, NULL);
 
+    GPSConfig_t gps_config = {
+        .uart_controller_port = 2,
+        .gps_status = xEventGroupCreate(),
+        .parent_task = xTaskGetCurrentTaskHandle(),
+        .sync_barrier = task_params.dev_barrier,
+        .sync_id = DEV_GPS
+    };
+    task_params.gps_dev = gps_setup_new(&gps_config);
+    xTaskCreate(gps_task, "gps", 2048, task_params.gps_dev, 10, NULL);
+
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
     xTaskCreate(prepare_payload_task, "payload", 4096, &task_params, 1, NULL);
     
