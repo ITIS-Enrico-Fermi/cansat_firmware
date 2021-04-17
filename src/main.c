@@ -25,6 +25,13 @@
 
 #include "i2c/i2c.h"
 
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+
+//  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
+EventBits_t querying = DEV_NTC;
+//
+
 //FILE *log_stream;
 
 typedef struct {
@@ -161,6 +168,24 @@ void prepare_payload_task(void *pvParameters) {
     }
 }
 
+void ntc_task(void *pvParameters) {
+    esp_adc_cal_characteristics_t *adc_chs = pvParameters;
+
+    uint32_t adc_reading = 0;
+    uint32_t voltage = 0;
+
+    while(true) {
+        adc_reading = adc1_get_raw(ADC_CHANNEL_7);
+        voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chs);
+
+        printf("Raw: %d, voltage: %dmV\n", adc_reading, voltage);
+
+        vTaskDelay(1000 / portTICK_RATE_MS);
+    }
+
+    vTaskDelete(NULL);
+}
+
 
 void app_main() {
 
@@ -172,35 +197,51 @@ void app_main() {
 
     i2c_init();
 
-    struct sps30_task_parameters sps30_params = {
-        .dev_barrier = task_params.dev_barrier,
-        .pm_queue = task_params.pm_queue,
-        .device_id = DEV_SPS30
-    };
-    xTaskCreate(sps30_task, "sps30", 2048, &sps30_params, 1, NULL);
+    if(querying & DEV_SPS30) {
+        struct sps30_task_parameters sps30_params = {
+            .dev_barrier = task_params.dev_barrier,
+            .pm_queue = task_params.pm_queue,
+            .device_id = DEV_SPS30
+        };
+        xTaskCreate(sps30_task, "sps30", 2048, &sps30_params, 1, NULL);
+    }
 
-    bme280_config_t bme280_config = {
-        .t_os = BME280_OVERSAMPLING_4X,
-        .p_os = BME280_OVERSAMPLING_1X,
-        .h_os = BME280_OVERSAMPLING_16X,
-        .filter_k = BME280_FILTER_COEFF_8,
-        .parent_task = xTaskGetCurrentTaskHandle(),
-        .delay = 1000,
-        .sync_barrier = task_params.dev_barrier,
-        .sync_id = DEV_BME280,
-    };
-    bme280_setup(&bme280_config);
-    xTaskCreate(bme280_task_normal_mode, "bme280", 2048, NULL, 10, NULL);
+    if(querying & DEV_BME280) {
+        bme280_config_t bme280_config = {
+            .t_os = BME280_OVERSAMPLING_4X,
+            .p_os = BME280_OVERSAMPLING_1X,
+            .h_os = BME280_OVERSAMPLING_16X,
+            .filter_k = BME280_FILTER_COEFF_8,
+            .parent_task = xTaskGetCurrentTaskHandle(),
+            .delay = 1000,
+            .sync_barrier = task_params.dev_barrier,
+            .sync_id = DEV_BME280,
+        };
+        bme280_setup(&bme280_config);
+        xTaskCreate(bme280_task_normal_mode, "bme280", 2048, NULL, 10, NULL);
+    }
 
-    GPSConfig_t gps_config = {
-        .uart_controller_port = 2,
-        .gps_status = xEventGroupCreate(),
-        .parent_task = xTaskGetCurrentTaskHandle(),
-        .sync_barrier = task_params.dev_barrier,
-        .sync_id = DEV_GPS
-    };
-    task_params.gps_dev = gps_setup_new(&gps_config);
-    xTaskCreate(gps_task, "gps", 2048, task_params.gps_dev, 10, NULL);
+    if(querying & DEV_GPS) {
+        GPSConfig_t gps_config = {
+            .uart_controller_port = 2,
+            .gps_status = xEventGroupCreate(),
+            .parent_task = xTaskGetCurrentTaskHandle(),
+            .sync_barrier = task_params.dev_barrier,
+            .sync_id = DEV_GPS
+        };
+        task_params.gps_dev = gps_setup_new(&gps_config);
+        xTaskCreate(gps_task, "gps", 2048, task_params.gps_dev, 10, NULL);
+    }
+
+    if(querying & DEV_NTC) {
+        //Configure ADC on pin D5(?)
+        adc1_config_width(ADC_WIDTH_BIT_12);
+        adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
+        esp_adc_cal_characteristics_t *adc_chs = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+        esp_adc_cal_value_t adc_val = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, adc_chs);
+
+        xTaskCreate(ntc_task, "ntc", 2048, (void *)adc_chs, 10, NULL);
+    }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
     xTaskCreate(prepare_payload_task, "payload", 4096, &task_params, 1, NULL);
