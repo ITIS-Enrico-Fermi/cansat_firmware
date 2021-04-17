@@ -27,6 +27,7 @@
 
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "ntc.h"
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
 EventBits_t querying = DEV_NTC;
@@ -168,25 +169,6 @@ void prepare_payload_task(void *pvParameters) {
     }
 }
 
-void ntc_task(void *pvParameters) {
-    esp_adc_cal_characteristics_t *adc_chs = pvParameters;
-
-    uint32_t adc_reading = 0;
-    uint32_t voltage = 0;
-
-    while(true) {
-        adc_reading = adc1_get_raw(ADC_CHANNEL_7);
-        voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chs);
-
-        printf("Raw: %d, voltage: %dmV\n", adc_reading, voltage);
-
-        vTaskDelay(1000 / portTICK_RATE_MS);
-    }
-
-    vTaskDelete(NULL);
-}
-
-
 void app_main() {
 
     task_params = (struct task_parameters){
@@ -235,12 +217,9 @@ void app_main() {
 
     if(querying & DEV_NTC) {
         //Configure ADC on pin D5(?)
-        adc1_config_width(ADC_WIDTH_BIT_12);
-        adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
-        esp_adc_cal_characteristics_t *adc_chs = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-        esp_adc_cal_value_t adc_val = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, adc_chs);
+        ntc_init();
 
-        xTaskCreate(ntc_task, "ntc", 2048, (void *)adc_chs, 10, NULL);
+        xTaskCreate(ntc_task, "ntc", 2048, NULL, 10, NULL);
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
