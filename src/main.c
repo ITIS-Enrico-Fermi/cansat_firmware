@@ -30,7 +30,7 @@
 #include "ntc.h"
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_NTC;
+EventBits_t querying = DEV_NTC | DEV_BME280;
 //
 
 //FILE *log_stream;
