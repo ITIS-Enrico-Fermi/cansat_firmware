@@ -5,12 +5,26 @@
  * @brief LoRa wrapper for RFM95 (RFM9_) module
  */
 
-#include "rfm95.h"
+#ifndef __LORA
+#define __LORA
 
-typedef struct {
-    int timestamp;
-    EventBits_t contains;
+#include "rfm95.h"
+#include <time.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif  // __cplusplus
+
+#pragma pack(1)  // Avoid struct padding
+struct lora_payload {
+    time_t timestamp;
     bme280_data_t ambient;
     gps_position_t position;
     struct sps30_measurement partmatter;
-} Payload_t;
+}
+
+#ifdef __cplusplus
+}
+#endif  // __cplusplus
+
+#endif __LORA  // __LORA
