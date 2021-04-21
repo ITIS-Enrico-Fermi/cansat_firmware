@@ -37,15 +37,6 @@ EventBits_t querying = DEV_NTC | DEV_BME280;
 
 //FILE *log_stream;
 
-typedef struct {
-    int timestamp;
-    EventBits_t contains;
-    bme280_data_t ambient;
-    gps_position_t position;
-    struct sps30_measurement partmatter;
-} Payload_t;
-
-
 struct task_parameters {
     QueueHandle_t pipeline;
     EventGroupHandle_t dev_barrier;
