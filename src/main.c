@@ -29,6 +29,8 @@
 #include "esp_adc_cal.h"
 #include "ntc.h"
 
+#include "lora.h"
+
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
 EventBits_t querying = DEV_NTC | DEV_BME280;
 //
