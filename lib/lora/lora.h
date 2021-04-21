@@ -16,7 +16,7 @@ extern "C" {
 #endif  // __cplusplus
 
 #pragma pack(1)  // Avoid struct padding
-struct lora_payload {
+struct lora_payload {  // Shared struct between base station and transmitter
     time_t timestamp;
     bme280_data_t ambient;
     gps_position_t position;
