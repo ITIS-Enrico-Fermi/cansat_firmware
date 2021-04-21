@@ -1,0 +1,3 @@
+[submodule "lib/rfm95"]
+	path = lib/rfm95
+	url = https://github.com/ITIS-Enrico-Fermi/rfm95
