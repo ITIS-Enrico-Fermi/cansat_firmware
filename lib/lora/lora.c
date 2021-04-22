@@ -52,6 +52,8 @@ void lora_shrink_payload(Payload_t *src, struct lora_shrinked_payload *dst) {
     dst->sps30.nc_4p0 = src->partmatter.nc_4p0;
     dst->sps30.nc_10p0 = src->partmatter.nc_10p0;
     dst->sps30.typical_particle_size = src->partmatter.typical_particle_size;
+
+    dst->ntc = src->ntc_temp;
 }
 
 // void lora_set_payload(struct lora_shrinked_payload *sp) {

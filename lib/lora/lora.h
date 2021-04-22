@@ -24,7 +24,7 @@ extern "C" {
 #endif  // __cplusplus
 
 typedef struct {
-    int timestamp;
+    time_t timestamp;  // Offset between CanSat clock and BS start time
     EventBits_t contains;
     bme280_data_t ambient;
     gps_position_t position;
@@ -68,6 +68,7 @@ struct lora_shrinked_payload {  // Shared struct between base station and transm
     struct lora_bme280_data bme280;
     struct lora_gps_data gps;
     struct lora_sps30_data sps30;
+    double ntc;
 };
 
 struct lora_cfg {

@@ -4,6 +4,7 @@
         "future": "c",
         "semphr.h": "c",
         "bme280_i2c.h": "c",
-        "lora.h": "c"
+        "lora.h": "c",
+        "event_groups.h": "c"
     },
 }

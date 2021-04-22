@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/event_groups.h>
@@ -125,6 +126,8 @@ void prepare_payload_task(void *pvParameters) {
         if(xQueueReceive(pipeline, &payload, 1000 / portTICK_PERIOD_MS) == pdTRUE) {
             ESP_LOGI("payload_task", "Received payload");
 
+        time(&payload.timestamp);  // Offset between CanSat clock and BS start time
+        
         if(payload.contains & DEV_BME280) {
             bme280_data_t *amb = &payload.ambient;
             sprintf(out_buf, "T: %.2f, P: %.2f, h: %.2f", amb->temperature, amb->pressure, amb->humidity);
