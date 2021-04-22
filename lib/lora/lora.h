@@ -29,6 +29,7 @@ typedef struct {
     bme280_data_t ambient;
     gps_position_t position;
     struct sps30_measurement partmatter;
+    double ntc_temp;
 } Payload_t;
 
 

@@ -78,11 +78,13 @@ void lora_send(Payload_t *p) {
     xQueueSend(queue, &sp, 100/portTICK_PERIOD_MS);
 }
 
-void lora_trasmission_task(void *pv) {
+void lora_transmission_task(void *pv) {
     struct lora_shrinked_payload payload;
     for (;;) {
         if (xQueueReceive(queue, &payload, portMAX_DELAY) == pdTRUE) {
             rfm95_send_packet((uint8_t *) &payload, sizeof(struct lora_shrinked_payload));  // Warning: blocking function. Contains vTaskDelay
+            ESP_LOGD(TAG, "Sent packet");
         }
+        vTaskDelay(100/portTICK_PERIOD_MS);
     }
 }

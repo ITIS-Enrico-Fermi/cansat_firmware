@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/event_groups.h>
@@ -7,7 +8,7 @@
 #include "esp_log.h"
 #include "driver/gpio.h"
 
-#define TAG "Main"
+#define TAG "MAIN"
 
 #include "spi/spi.h"
 #include "sdcard.h"
@@ -31,6 +32,8 @@
 
 #include "lora.h"
 
+bool tx_enabled = true;  // false to disable LoRa transmission
+
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
 EventBits_t querying = DEV_NTC | DEV_BME280;
 //
@@ -42,6 +45,7 @@ struct task_parameters {
     EventGroupHandle_t dev_barrier;
     GPSDevice_t gps_dev;
     QueueHandle_t pm_queue;
+    QueueHandle_t ntc_queue;
 };
 struct task_parameters task_params;
 
@@ -57,7 +61,7 @@ void query_sensors_task(void *pvParameters) {
 
     Payload_t payload;
 
-    EventBits_t querying = DEV_BME280 + DEV_GPS + DEV_SPS30;
+    EventBits_t querying = DEV_BME280 + DEV_GPS + DEV_SPS30 + DEV_NTC;
 
     while(true) {
 
@@ -65,7 +69,7 @@ void query_sensors_task(void *pvParameters) {
             devices_barrier,
             querying,
             pdTRUE,
-            pdFALSE,
+            pdFALSE,  // pdTRUE in production (?)
             1000
         );
 
@@ -89,6 +93,13 @@ void query_sensors_task(void *pvParameters) {
             xQueueReceive(tp->pm_queue, &m, 1000 / portTICK_RATE_MS);
 
             payload.partmatter = m;
+        }
+
+        if(ready & DEV_NTC) {
+            double ntc_temp;
+            xQueueReceive(tp->ntc_queue, &ntc_temp, 1000 / portTICK_PERIOD_MS);
+
+            payload.ntc_temp = ntc_temp;
         }
 
         payload.contains = ready & querying;
@@ -156,6 +167,19 @@ void prepare_payload_task(void *pvParameters) {
             printf("%s\n", out_buf);
         }
 
+        if(payload.contains & DEV_NTC) {
+            sprintf(
+                out_buf,
+                "NTC temperature: %.2f",
+                payload.ntc_temp
+            );
+        }
+
+        if(tx_enabled) {
+            ESP_LOGD(TAG, "Sending payload...");
+            lora_send(&payload);
+        }
+
         //fflush(log_stream);
 
         }
@@ -168,7 +192,8 @@ void app_main() {
     task_params = (struct task_parameters){
         .pipeline       = xQueueCreate(10, sizeof(Payload_t)),
         .dev_barrier    = xEventGroupCreate(),
-        .pm_queue       = xQueueCreate(10, sizeof(struct sps30_measurement))
+        .pm_queue       = xQueueCreate(10, sizeof(struct sps30_measurement)),
+        .ntc_queue      = xQueueCreate(10, sizeof(double))
     };
 
     i2c_init();
@@ -210,13 +235,31 @@ void app_main() {
     }
 
     if(querying & DEV_NTC) {
+        struct ntc_config ntc_config = {
+            .sync_barrier = task_params.dev_barrier,
+            .ntc_queue = task_params.ntc_queue,
+            .device_id = DEV_NTC
+        };
         //Configure ADC on pin D5(?)
-        ntc_init();
+        ntc_init(&ntc_config);
 
         xTaskCreate(ntc_task, "ntc", 2048, NULL, 10, NULL);
     }
 
+    if(tx_enabled) {
+        struct lora_cfg cfg = {
+            .spi = rfm95_spi_config_default(),
+            .freq = 868e6,
+            .tp = 17,
+            .sf = 12,
+            .bw = 500000,
+            .is_crc_en = true,
+        };
+        lora_setup(&cfg);
+        xTaskCreate(lora_transmission_task, "tx_task", 4096, NULL, 10, NULL);
+    }
+
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
     xTaskCreate(prepare_payload_task, "payload", 4096, &task_params, 1, NULL);
-    
+    ESP_LOGD(TAG, "Config finished");
 }

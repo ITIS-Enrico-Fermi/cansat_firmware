@@ -3,6 +3,7 @@
     "files.associations": {
         "future": "c",
         "semphr.h": "c",
-        "bme280_i2c.h": "c"
+        "bme280_i2c.h": "c",
+        "lora.h": "c"
     },
 }
