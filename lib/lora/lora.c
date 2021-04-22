@@ -7,17 +7,17 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <freertos/semphr.h>
 #include <esp_log.h>
 #include <string.h>
+#include <freertos/queue.h>
 
 #include "lora.h"
 
 #define TAG "LORA"
 
-static struct lora_shrinked_payload sp_local;
-static SemaphoreHandle_t lock;
-static TaskHandle_t task_to_notify;
+#define QUEUE_SIZE 3
+
+static QueueHandle_t queue;
 
 void lora_setup(struct lora_cfg *cfg) {
     rfm95_init(&(cfg->spi));
@@ -27,8 +27,7 @@ void lora_setup(struct lora_cfg *cfg) {
     rfm95_set_bandwidth(cfg->bw);
     if (cfg->is_crc_en)
         rfm95_enable_crc();
-    lock = xSemaphoreCreateBinary();
-    xSemaphoreGive(lock);
+    queue = xQueueCreate(QUEUE_SIZE, sizeof(struct lora_shrinked_payload));
     ESP_LOGD(TAG, "Setup finished\n");
 }
 
@@ -55,40 +54,35 @@ void lora_shrink_payload(Payload_t *src, struct lora_shrinked_payload *dst) {
     dst->sps30.typical_particle_size = src->partmatter.typical_particle_size;
 }
 
-void lora_set_payload(struct lora_shrinked_payload *sp) {
-    xSemaphoreTake(lock, 200/portTICK_PERIOD_MS);
-    memcpy((void *)&sp_local, (void *)sp, sizeof(struct lora_shrinked_payload));
-    xSemaphoreGive(lock);
-}
+// void lora_set_payload(struct lora_shrinked_payload *sp) {
+//     xSemaphoreTake(lock, 200/portTICK_PERIOD_MS);
+//     memcpy((void *)&sp_local, (void *)sp, sizeof(struct lora_shrinked_payload));
+//     xSemaphoreGive(lock);
+// }
 
-void lora_shrink_and_set_payload(Payload_t *p) {
-    struct lora_shrinked_payload sp;
-    lora_shrink_payload(p, &sp);
-    lora_set_payload(&sp);
-}
+// void lora_shrink_and_set_payload(Payload_t *p) {
+//     struct lora_shrinked_payload sp;
+//     lora_shrink_payload(p, &sp);
+//     lora_set_payload(&sp);
+// }
 
-void lora_send_payload(struct lora_shrinked_payload *sp) {
-    BaseType_t task_woken = pdFALSE;
-    lora_set_payload(sp);
-    xTaskNotifyGive(task_to_notify);
-}
+// void lora_send_payload(struct lora_shrinked_payload *sp) {
+//     BaseType_t task_woken = pdFALSE;
+//     lora_set_payload(sp);
+//     xTaskNotifyGive(task_to_notify);
+// }
 
 void lora_send(Payload_t *p) {
-    BaseType_t task_woken = pdFALSE;
-    lora_shrink_and_set_payload(p);
-    xTaskNotifyGive(task_to_notify);
+    struct lora_shrinked_payload sp;
+    lora_shrink_payload(p, &sp);
+    xQueueSend(queue, &sp, 100/portTICK_PERIOD_MS);
 }
 
 void lora_trasmission_task(void *pv) {
-    task_to_notify = xTaskGetCurrentTaskHandle();
-    static uint32_t notification;
+    struct lora_shrinked_payload payload;
     for (;;) {
-        notification = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-        if (notification) {
-            xSemaphoreTake(lock, 200/portTICK_PERIOD_MS);
-            rfm95_send_packet((uint8_t *)&sp_local, sizeof(sp_local));
-            xSemaphoreGive(lock);
+        if (xQueueReceive(queue, &payload, portMAX_DELAY) == pdTRUE) {
+            rfm95_send_packet((uint8_t *) &payload, sizeof(struct lora_shrinked_payload));  // Warning: blocking function. Contains vTaskDelay
         }
     }
 }
