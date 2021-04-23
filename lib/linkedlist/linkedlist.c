@@ -2,7 +2,7 @@
 #define LINKED_LIST_C
 
 #include <stdlib.h>
-#include "linkedList.h"
+#include "linkedlist.h"
 
 /**
  * @brief createNode implementation

@@ -1,0 +1,6 @@
+[submodule "lib/rfm95"]
+	path = lib/rfm95
+	url = https://github.com/ITIS-Enrico-Fermi/rfm95
+[submodule "lib/nfa4x10"]
+	path = lib/nfa4x10
+	url = https://github.com/ITIS-Enrico-Fermi/nfa4x10
