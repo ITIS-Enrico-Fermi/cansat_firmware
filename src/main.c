@@ -36,7 +36,7 @@
 bool tx_enabled = true;  // false to disable LoRa transmission
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-    EventBits_t querying = DEV_SPS30;
+EventBits_t querying = DEV_SPS30;
 
 
 //FILE *log_stream;
@@ -68,7 +68,7 @@ void query_sensors_task(void *pvParameters) {
             devices_barrier,
             querying,
             pdTRUE,
-            pdFALSE,  // pdTRUE in production (?)
+            pdTRUE,  // pdTRUE in production (?)
             1000
         );
 
@@ -205,7 +205,7 @@ void app_main() {
             .pm_queue = task_params.pm_queue,
             .device_id = DEV_SPS30
         };
-        xTaskCreate(sps30_task, "sps30", 2048, &sps30_params, 1, NULL);
+        xTaskCreate(sps30_task, "sps30", 4096, &sps30_params, 1, NULL);
     }
 
     if(querying & DEV_BME280) {
