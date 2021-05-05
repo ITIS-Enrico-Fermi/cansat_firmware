@@ -17,6 +17,9 @@ static QueueHandle_t queue;
 static EventGroupHandle_t barrier;
 static int id;
 
+// GPIO4 -> NTC circuit
+// Using ADC 2 CH 0
+
 /* tools */
 
 // voltage at B (10kohm)
@@ -45,8 +48,13 @@ int ntc_init(struct ntc_config *config) {
     barrier = (EventGroupHandle_t) config->sync_barrier;
     id = (int) config->device_id;
 
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
+    // Configuration for ADC 1 CH 7
+    // adc1_config_width(ADC_WIDTH_BIT_12);
+    // adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
+
+    // Configuration for ADC 2 CH 0
+    adc2_config_channel_atten(ADC_CHANNEL_0, ADC_ATTEN_DB_11);
+
 
     //  Compute calibration curve
     esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_cal);
@@ -57,12 +65,13 @@ int ntc_init(struct ntc_config *config) {
 }
 
 void ntc_task(void *pvParameters) {
-    uint32_t adc_reading = 0;
+    int adc_reading = 0;
     uint32_t voltage = 0;
     double temp;
 
     while(true) {
-        adc_reading = adc1_get_raw(ADC_CHANNEL_7);
+        // adc_reading = adc1_get_raw(ADC_CHANNEL_7);
+        adc2_get_raw(ADC_CHANNEL_0, ADC_WIDTH_BIT_12, &adc_reading);
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_cal);
 
         temp = voltage_to_temperature(voltage);
