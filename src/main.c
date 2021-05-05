@@ -36,8 +36,8 @@
 bool tx_enabled = true;  // false to disable LoRa transmission
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_NTC | DEV_BME280;
-//
+    EventBits_t querying = DEV_BME280 | DEV_GPS | DEV_SPS30 | DEV_NTC;
+
 
 //FILE *log_stream;
 
@@ -61,8 +61,6 @@ void query_sensors_task(void *pvParameters) {
     GPSDevice_t gps = tp->gps_dev;
 
     Payload_t payload;
-
-    EventBits_t querying = DEV_BME280 + DEV_GPS + DEV_SPS30 + DEV_NTC;
 
     while(true) {
 
@@ -251,7 +249,13 @@ void app_main() {
 
     if(tx_enabled) {
         struct lora_cfg cfg = {
-            .spi = rfm95_spi_config_default(),
+            .spi = {
+                .cs = 15,
+                .rst = 2,
+                .miso = 19,
+                .mosi = 23,
+                .sck = 18
+            },
             .freq = 868e6,
             .tp = 17,
             .sf = 12,
