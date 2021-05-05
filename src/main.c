@@ -117,26 +117,30 @@ void prepare_payload_task(void *pvParameters) {
     QueueHandle_t pipeline = tp->pipeline;
 
     Payload_t payload;
-    char out_buf[1000];
+    char out_buf[1024];
+    int out_buf_len;
 
     while(true) {
         
         if(xQueueReceive(pipeline, &payload, 1000 / portTICK_PERIOD_MS) == pdTRUE) {
-            ESP_LOGI("payload_task", "Received payload");
+        
+        ESP_LOGI("payload_task", "Received payload");
+        out_buf_len = 0;
 
         time(&payload.timestamp);  // Offset between CanSat clock and BS start time
+        out_buf_len += sprintf(out_buf+out_buf_len, "Time offset: %ld\n", payload.timestamp);
         
         if(payload.contains & DEV_BME280) {
             bme280_data_t *amb = &payload.ambient;
-            sprintf(out_buf, "T: %.2f, P: %.2f, h: %.2f", amb->temperature, amb->pressure, amb->humidity);
+            out_buf_len += sprintf(out_buf+out_buf_len, "T: %.2f, P: %.2f, h: %.2f\n", amb->temperature, amb->pressure, amb->humidity);
             //fprintf(log_stream, "%s\t", out_buf);
         }
 
         if(payload.contains & DEV_GPS) {
             gps_position_t *pos = &payload.position;
-            sprintf(
-                out_buf,
-                "Latitude: %.6f, Longitude: %.6f, Altitude: %.6f, Fix quality: %d",
+            out_buf_len += sprintf(
+                out_buf+out_buf_len,
+                "Latitude: %.6f, Longitude: %.6f, Altitude: %.6f, Fix quality: %d\n",
                 minmea_tocoord(&pos->latitude),
                 minmea_tocoord(&pos->longitude),
                 minmea_tofloat(&pos->altitude),
@@ -147,8 +151,8 @@ void prepare_payload_task(void *pvParameters) {
 
         if(payload.contains & DEV_SPS30) {
             struct sps30_measurement *pm = &payload.partmatter;
-            sprintf(
-                out_buf,
+            out_buf_len += sprintf(
+                out_buf+out_buf_len,
                 "measured values:\n"
                 "\t%0.2f pm1.0\n"
                 "\t%0.2f pm2.5\n"
@@ -166,8 +170,8 @@ void prepare_payload_task(void *pvParameters) {
         }
 
         if(payload.contains & DEV_NTC) {
-            sprintf(
-                out_buf,
+            out_buf_len += sprintf(
+                out_buf+out_buf_len,
                 "NTC temperature: %.2f",
                 payload.ntc_temp
             );
@@ -255,7 +259,7 @@ void app_main() {
         xTaskCreate(ntc_task, "ntc", 2048, NULL, 10, NULL);
     }
 
-    if(saving & DEV_RFM95) {
+    if(sending & DEV_RFM95) {
         struct lora_cfg cfg = {
             .spi = {
                 .cs = 15,
