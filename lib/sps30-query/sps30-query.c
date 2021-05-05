@@ -51,21 +51,6 @@ void sps30_task(void *pvParameters) {
         if(sps30_read_measurement(&m) < 0) {
             ESP_LOGW(TAG, "SPS30 Cannot retrieve last measurement");
         } else {
-            ESP_LOGD(TAG,
-                "measured values:\n"
-                "\t%0.2f pm1.0\n"
-                "\t%0.2f pm2.5\n"
-                "\t%0.2f pm4.0\n"
-                "\t%0.2f pm10.0\n"
-                "\t%0.2f nc0.5\n"
-                "\t%0.2f nc1.0\n"
-                "\t%0.2f nc2.5\n"
-                "\t%0.2f nc4.5\n"
-                "\t%0.2f nc10.0\n"
-                "\t%0.2f typical particle size\n",
-                m.mc_1p0, m.mc_2p5, m.mc_4p0, m.mc_10p0, m.nc_0p5, m.nc_1p0,
-                m.nc_2p5, m.nc_4p0, m.nc_10p0, m.typical_particle_size
-            );
             xQueueSend(pm_queue, &m, 100 / portTICK_RATE_MS);
             ESP_LOGD(TAG, "id: %d", sps30_id);
             xEventGroupSetBits(devices_barrier, sps30_id);

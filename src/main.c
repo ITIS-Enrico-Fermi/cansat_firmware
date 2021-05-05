@@ -36,7 +36,7 @@
 bool tx_enabled = true;  // false to disable LoRa transmission
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_SPS30;
+EventBits_t querying = DEV_SPS30 | DEV_NTC;
 
 
 //FILE *log_stream;
@@ -176,7 +176,9 @@ void prepare_payload_task(void *pvParameters) {
             );
         }
 
-        if(tx_enabled) {
+        if(tx_enabled) {  // Send payload through LoRa 
+            ESP_LOGI(TAG, "%s\n", out_buf);
+
             ESP_LOGD(TAG, "Sending payload...");
             lora_send(&payload);
         }
