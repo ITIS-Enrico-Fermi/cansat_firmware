@@ -12,7 +12,7 @@ static int8_t rslt;
 static struct bme280_dev dev;
 static uint32_t req_delay;
 
-static uint8_t i2c_num_glob;
+static uint8_t i2c_bus_glob;
 
 static SemaphoreHandle_t measure_sem;
 static EventGroupHandle_t bme280_status;
@@ -57,7 +57,7 @@ int8_t BME280_I2C_bus_write(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_dat
     i2c_master_write(cmd, reg_data, cnt, true);
     i2c_master_stop(cmd);
 
-    espRc = i2c_master_cmd_begin(i2c_num_glob, cmd, 10/portTICK_PERIOD_MS);
+    espRc = i2c_master_cmd_begin(i2c_bus_glob, cmd, 10/portTICK_PERIOD_MS);
     if (espRc == ESP_OK) {
         bme280_status_error = 0;
     } else {
@@ -96,7 +96,7 @@ int8_t BME280_I2C_bus_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data
     i2c_master_read_byte(cmd, reg_data+cnt-1, I2C_MASTER_NACK);
     i2c_master_stop(cmd);
 
-    espRc = i2c_master_cmd_begin(i2c_num_glob, cmd, 10/portTICK_PERIOD_MS);
+    espRc = i2c_master_cmd_begin(i2c_bus_glob, cmd, 10/portTICK_PERIOD_MS);
     if (espRc == ESP_OK) {
         bme280_status_error = 0;
     } else {
@@ -115,19 +115,19 @@ int8_t BME280_I2C_bus_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *reg_data
 *   Public API
 */
 
-void bme280_i2c_init(uint8_t i2c_sda, uint8_t i2c_scl, uint8_t i2c_num) {
+void bme280_i2c_init(uint8_t i2c_sda, uint8_t i2c_scl, uint8_t i2c_bus) {
 
     ESP_LOGD(
         TAG,
         "i2c_sda: %d\n"
         "i2c_scl: %d\n"
-        "i2c_num: %d\n",
+        "i2c_bus: %d\n",
         i2c_sda,
         i2c_scl,
-        i2c_num
+        i2c_bus
     );
 
-    i2c_num_glob = i2c_num;
+    i2c_bus_glob = i2c_bus;
 
     i2c_config_t i2c_conf = {
         .mode = I2C_MODE_MASTER,
@@ -138,8 +138,8 @@ void bme280_i2c_init(uint8_t i2c_sda, uint8_t i2c_scl, uint8_t i2c_num) {
         .master.clk_speed = 400000
     };
 
-    ESP_ERROR_CHECK(i2c_param_config(i2c_num, &i2c_conf));
-    ESP_ERROR_CHECK(i2c_driver_install(i2c_num, I2C_MODE_MASTER, 0, 0, 0));
+    ESP_ERROR_CHECK(i2c_param_config(i2c_bus, &i2c_conf));
+    ESP_ERROR_CHECK(i2c_driver_install(i2c_bus, I2C_MODE_MASTER, 0, 0, 0));
     
 }
 
@@ -160,7 +160,7 @@ void bme280_setup(bme280_config_t *config) {  //Temperature Oversampling, Pressu
     uint8_t filter_k = config->filter_k;
     uint8_t i2c_sda = config->i2c.sda;
     uint8_t i2c_scl = config->i2c.scl;
-    uint8_t i2c_num = config->i2c.num;
+    uint8_t i2c_bus = config->i2c.bus;
 
     handler = config->parent_task;
 
@@ -179,7 +179,7 @@ void bme280_setup(bme280_config_t *config) {  //Temperature Oversampling, Pressu
     };
     uint8_t settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
 
-    bme280_i2c_init(i2c_sda, i2c_scl, i2c_num);
+    bme280_i2c_init(i2c_sda, i2c_scl, i2c_bus);
 
     rslt = BME280_OK;
     rslt = bme280_init(&dev);

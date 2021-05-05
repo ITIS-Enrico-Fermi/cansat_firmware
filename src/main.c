@@ -36,7 +36,7 @@
 bool tx_enabled = true;  // false to disable LoRa transmission
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_NTC | DEV_BME280;
+EventBits_t querying = DEV_NTC | DEV_BME280 | DEV_SPS30;
 
 
 //FILE *log_stream;
@@ -203,9 +203,11 @@ void app_main() {
         struct sps30_task_parameters sps30_params = {
             .dev_barrier = task_params.dev_barrier,
             .pm_queue = task_params.pm_queue,
-            .device_id = DEV_SPS30
+            .device_id = DEV_SPS30,
+            .i2c_bus = I2C_NUM_0
         };
-        xTaskCreate(sps30_task, "sps30", 4096, &sps30_params, 1, NULL);
+        sps30_setup(&sps30_params);
+        xTaskCreate(sps30_task, "sps30", 4096, NULL, 1, NULL);
     }
 
     if(querying & DEV_BME280) {
@@ -221,7 +223,7 @@ void app_main() {
             .i2c = {
                 .sda = GPIO_NUM_5,
                 .scl = GPIO_NUM_0,
-                .num = I2C_NUM_1
+                .bus = I2C_NUM_1
             }
         };
         bme280_setup(&bme280_config);

@@ -15,7 +15,7 @@ typedef struct bme280_data bme280_data_t;
 struct i2c_pins {
     uint8_t sda;
     uint8_t scl;
-    uint8_t num;
+    uint8_t bus;
 };
 typedef struct {
     uint8_t t_os;
