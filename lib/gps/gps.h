@@ -24,12 +24,18 @@ typedef enum {
     GPS_STATUS_TOTAL
 } GPSStatus_t;
 
+struct uart_config {
+    int tx;
+    int rx;
+};
+
 typedef struct {
     uart_port_t uart_controller_port;
     TaskHandle_t parent_task;
     EventGroupHandle_t gps_status;
     EventGroupHandle_t sync_barrier;
     size_t sync_id;
+    struct uart_config uart;
 } GPSConfig_t;
 
 typedef void* GPSDevice_t;

@@ -33,10 +33,10 @@
 
 #include "lora.h"
 
-bool tx_enabled = true;  // false to disable LoRa transmission
+EventBits_t sending = DEV_RFM95 | DEV_SD;
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_NTC | DEV_BME280 | DEV_SPS30;
+EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;
 
 
 //FILE *log_stream;
@@ -129,7 +129,6 @@ void prepare_payload_task(void *pvParameters) {
         if(payload.contains & DEV_BME280) {
             bme280_data_t *amb = &payload.ambient;
             sprintf(out_buf, "T: %.2f, P: %.2f, h: %.2f", amb->temperature, amb->pressure, amb->humidity);
-            printf("%s\n", out_buf);
             //fprintf(log_stream, "%s\t", out_buf);
         }
 
@@ -143,7 +142,6 @@ void prepare_payload_task(void *pvParameters) {
                 minmea_tofloat(&pos->altitude),
                 pos->fix_quality
             );
-            printf("%s\n", out_buf);
             //fprintf(log_stream, "%s\n", out_buf);
         }
 
@@ -165,7 +163,6 @@ void prepare_payload_task(void *pvParameters) {
                 pm->mc_1p0, pm->mc_2p5, pm->mc_4p0, pm->mc_10p0, pm->nc_0p5, pm->nc_1p0,
                 pm->nc_2p5, pm->nc_4p0, pm->nc_10p0, pm->typical_particle_size
             );
-            printf("%s\n", out_buf);
         }
 
         if(payload.contains & DEV_NTC) {
@@ -176,7 +173,7 @@ void prepare_payload_task(void *pvParameters) {
             );
         }
 
-        if(tx_enabled) {  // Send payload through LoRa 
+        if(sending & DEV_RFM95) {  // Send payload through LoRa point to point connection
             ESP_LOGI(TAG, "%s\n", out_buf);
 
             ESP_LOGD(TAG, "Sending payload...");
@@ -236,7 +233,11 @@ void app_main() {
             .gps_status = xEventGroupCreate(),
             .parent_task = xTaskGetCurrentTaskHandle(),
             .sync_barrier = task_params.dev_barrier,
-            .sync_id = DEV_GPS
+            .sync_id = DEV_GPS,
+            .uart = {
+                .tx = 17,
+                .rx = 16
+            }
         };
         task_params.gps_dev = gps_setup_new(&gps_config);
         xTaskCreate(gps_task, "gps", 2048, task_params.gps_dev, 10, NULL);
@@ -254,7 +255,7 @@ void app_main() {
         xTaskCreate(ntc_task, "ntc", 2048, NULL, 10, NULL);
     }
 
-    if(tx_enabled) {
+    if(saving & DEV_RFM95) {
         struct lora_cfg cfg = {
             .spi = {
                 .cs = 15,
