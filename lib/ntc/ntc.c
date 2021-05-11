@@ -23,7 +23,7 @@ static int id;
 /* tools */
 
 // voltage at B (10kohm)
-#define V_NOD   (553)
+#define V_NOD   (648)
 // temperature at B (25°C in K)
 #define T_NOD   (298.15)
 #define B       (3976)
@@ -57,7 +57,8 @@ int ntc_init(struct ntc_config *config) {
 
 
     //  Compute calibration curve
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_cal);
+    // Get VRef calibration by running: espefuse.py --port /dev/ttyUSB0 adc_info
+    esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_cal);
 
     initialized = true;
 
@@ -73,6 +74,8 @@ void ntc_task(void *pvParameters) {
         // adc_reading = adc1_get_raw(ADC_CHANNEL_7);
         adc2_get_raw(ADC_CHANNEL_0, ADC_WIDTH_BIT_12, &adc_reading);
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_cal);
+
+        // esp_adc_cal_get_voltage(ADC_CHANNEL_0, &adc_cal, &voltage);
 
         temp = voltage_to_temperature(voltage);
 
