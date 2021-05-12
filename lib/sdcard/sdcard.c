@@ -12,6 +12,7 @@
 #include "driver/spi_common.h"
 #include "driver/gpio.h"
 #include "esp_vfs_fat.h"
+#include "esp_vfs.h"
 #include "sdmmc_cmd.h"
 #include <stdio.h>
 #include <string.h>
@@ -117,7 +118,7 @@ esp_err_t sdcard_init(const struct sdcard_config *conf) {
     return ESP_OK;
 }
 
-FILE *sdcard_get_fd(const char *filename) {
+FILE *sdcard_get_stream(const char *filename) {
     if (file_num >= max_file_num) {
         ESP_LOGE(TAG, "Maximum number of open files reached");
         return NULL;
@@ -134,5 +135,7 @@ FILE *sdcard_get_fd(const char *filename) {
         return NULL;
     }
     free(abs_filename);
+    setlinebuf(f);
+    // setvbuf(f, (char*)NULL, _IOLBF, 0);
     return f;
 }

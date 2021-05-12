@@ -8,6 +8,7 @@
 #include <freertos/queue.h>
 #include "esp_log.h"
 #include "driver/gpio.h"
+#include "esp_vfs.h"
 
 #define TAG "MAIN"
 
@@ -120,8 +121,6 @@ void prepare_payload_task(void *pvParameters) {
     char out_buf[1024];
     int out_buf_len;
 
-    int test_counter = 0;
-
     while(true) {
         
         if(xQueueReceive(pipeline, &payload, 1000 / portTICK_PERIOD_MS) == pdTRUE) {
@@ -185,9 +184,10 @@ void prepare_payload_task(void *pvParameters) {
         }
         
         if (sending & DEV_SD) {
-            fprintf(tp->pretty_file, out_buf);
+            fprintf(tp->pretty_file, out_buf);  // The stream is buffered, no concerns about delay (?)
             fprintf(tp->pretty_file, "\n");
             fflush(tp->pretty_file);
+            fsync(fileno(tp->pretty_file));
             // TODO: Close the file somewhere
         }
 
@@ -296,8 +296,8 @@ void app_main() {
             .max_files = 2
         };
         sdcard_init(&conf);
-        task_params.pretty_file = sdcard_get_fd("msr.log");
-        task_params.csv_file    = sdcard_get_fd("msr.csv");
+        task_params.pretty_file = sdcard_get_stream("msr.log");
+        task_params.csv_file    = sdcard_get_stream("msr.csv");
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
