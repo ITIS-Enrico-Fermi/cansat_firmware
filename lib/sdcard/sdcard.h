@@ -31,7 +31,18 @@ struct sdcard_config {
 extern "C" {
 #endif
 
+/**
+ * @brief initialize spi bus, sd card and vfs
+ * @param conf configuration structure
+ * @return ESP_OK if no error occurred; the error value otherwise
+ */
 esp_err_t sdcard_init(const struct sdcard_config *conf);
+
+/**
+ * @brief open a file after a few settings
+ * @param filename string representing the relative name of the file you want to open
+ * @return stream linked to the open file
+ */
 FILE *sdcard_get_stream(const char *filename);
 
 #ifdef __cplusplus
