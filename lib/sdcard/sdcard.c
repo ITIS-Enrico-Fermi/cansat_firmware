@@ -22,6 +22,9 @@
 
 #define DMA_CHAN            (host.slot)
 
+static int file_num = 0;
+static int max_file_num = MAX_FILES;
+
 esp_err_t sdcard_init(const struct sdcard_config *conf) {
     sdmmc_card_t *card;
     const char mp[] = MOUNT_POINT;
@@ -83,6 +86,7 @@ esp_err_t sdcard_init(const struct sdcard_config *conf) {
         .max_files = conf->max_files == NULL ? MAX_FILES : conf->max_files,
         .allocation_unit_size = BLOCK_SIZE * 1024
     };
+    if (conf->max_files != NULL) max_file_num = conf->max_files;
     ret = esp_vfs_fat_sdspi_mount(mp, &host, &slot_conf, &mount_conf, &card);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to init and mount the card: %s", esp_err_to_name(ret));
@@ -107,6 +111,12 @@ esp_err_t sdcard_init(const struct sdcard_config *conf) {
 }
 
 FILE *sdcard_get_fd(const char *filename) {
+    if (file_num >= max_file_num) {
+        ESP_LOGE(TAG, "Maximum number of open files reached");
+        return NULL;
+    }
+    file_num++;
+    
     char *abs_filename = malloc(strlen(filename)+strlen(MOUNT_POINT)+2);
     sprintf(abs_filename, "%s/%s", MOUNT_POINT, filename);
     
@@ -114,7 +124,7 @@ FILE *sdcard_get_fd(const char *filename) {
     FILE *f = fopen(abs_filename, "w");
     if (f == NULL) {
         ESP_LOGE(TAG, "Error opening the file");
-        return;
+        return NULL;
     }
     free(abs_filename);
     return f;

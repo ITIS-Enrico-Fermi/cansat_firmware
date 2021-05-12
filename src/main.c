@@ -45,6 +45,8 @@ struct task_parameters {
     GPSDevice_t gps_dev;
     QueueHandle_t pm_queue;
     QueueHandle_t ntc_queue;
+    FILE *pretty_file;
+    FILE *csv_file;
 };
 struct task_parameters task_params;
 
