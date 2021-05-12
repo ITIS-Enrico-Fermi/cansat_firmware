@@ -188,10 +188,7 @@ void prepare_payload_task(void *pvParameters) {
             fprintf(tp->pretty_file, out_buf);
             fprintf(tp->pretty_file, "\n");
             fflush(tp->pretty_file);
-            test_counter++;
-            if (test_counter >= 5) {
-                fclose(tp->pretty_file);
-            }
+            // TODO: Close the file somewhere
         }
 
         }

@@ -1,12 +1,9 @@
-/*
- * sdcard.h
- * 
- * SD Card over SPI bus facility
- * by Giulio Corradini
- * 
- * Cansat Firmware 2021
- * 
- */
+/**
+ * @file sdcard.h
+ * @author Scansati Team 2021
+ * @date 12 May 2021
+ * @brief Tiny library for sd card (SDSPI) initialization and management
+*/
 
 #ifndef __sdcard_h
 #define __sdcard_h

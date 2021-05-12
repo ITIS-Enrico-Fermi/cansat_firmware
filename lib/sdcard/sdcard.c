@@ -1,3 +1,10 @@
+/**
+ * @file sdcard.c
+ * @author Scansati Team 2021
+ * @date 12 May 2021
+ * @brief Tiny library for sd card (SDSPI) initialization and management
+*/
+
 #include "sdcard.h"
 #include "driver/sdspi_host.h"
 #include "driver/sdmmc_host.h"
@@ -116,7 +123,7 @@ FILE *sdcard_get_fd(const char *filename) {
         return NULL;
     }
     file_num++;
-    
+
     char *abs_filename = malloc(strlen(filename)+strlen(MOUNT_POINT)+2);
     sprintf(abs_filename, "%s/%s", MOUNT_POINT, filename);
     
