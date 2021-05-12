@@ -9,6 +9,7 @@
         "devices.h": "c",
         "queue.h": "c",
         "freertos.h": "c",
-        "sps30-query.h": "c"
+        "sps30-query.h": "c",
+        "sdmmc_types.h": "c"
     },
 }

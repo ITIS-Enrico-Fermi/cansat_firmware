@@ -12,6 +12,7 @@
 #define TAG "MAIN"
 
 #include "spi/spi.h"
+
 #include "sdcard.h"
 
 #include "bme280.h"
@@ -25,21 +26,18 @@
 #include "sps30.h"
 #include "sps30-query.h"
 
-#include "i2c/i2c.h"
-
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 #include "ntc.h"
 
 #include "lora.h"
 
-EventBits_t sending = DEV_RFM95 | DEV_SD;
+// EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
+EventBits_t sending = DEV_SD;
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;
+EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;  // TODO: decomment in prod
 
-
-//FILE *log_stream;
 
 struct task_parameters {
     QueueHandle_t pipeline;
@@ -69,7 +67,7 @@ void query_sensors_task(void *pvParameters) {
             querying,
             pdTRUE,
             pdTRUE,  // pdTRUE in production (?)
-            1000
+            pdMS_TO_TICKS(1000)
         );
 
         if(ready != 0) {
@@ -177,9 +175,9 @@ void prepare_payload_task(void *pvParameters) {
             );
         }
 
-        if(sending & DEV_RFM95) {  // Send payload through LoRa point to point connection
-            ESP_LOGI(TAG, "%s\n", out_buf);
+        ESP_LOGI(TAG, "%s\n", out_buf);
 
+        if(sending & DEV_RFM95) {  // Send payload through LoRa point to point connection
             ESP_LOGD(TAG, "Sending payload...");
             lora_send(&payload);
         }
@@ -192,7 +190,6 @@ void prepare_payload_task(void *pvParameters) {
 }
 
 void app_main() {
-
     task_params = (struct task_parameters){
         .pipeline       = xQueueCreate(10, sizeof(Payload_t)),
         .dev_barrier    = xEventGroupCreate(),
@@ -276,6 +273,20 @@ void app_main() {
         };
         lora_setup(&cfg);
         xTaskCreate(lora_transmission_task, "tx_task", 4096, NULL, 10, NULL);
+    }
+
+    if (sending & DEV_SD) {
+        struct sdcard_config conf = {
+            .spi = {
+                .miso = 33,
+                .mosi = 32,
+                .sck = 25,
+                .cs = 27
+            },
+            .format_sd_if_mount_failed = true,
+            .max_files = 1
+        };
+        sdcard_init(&conf);
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
