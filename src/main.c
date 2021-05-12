@@ -120,6 +120,8 @@ void prepare_payload_task(void *pvParameters) {
     char out_buf[1024];
     int out_buf_len;
 
+    int test_counter = 0;
+
     while(true) {
         
         if(xQueueReceive(pipeline, &payload, 1000 / portTICK_PERIOD_MS) == pdTRUE) {
@@ -133,7 +135,6 @@ void prepare_payload_task(void *pvParameters) {
         if(payload.contains & DEV_BME280) {
             bme280_data_t *amb = &payload.ambient;
             out_buf_len += sprintf(out_buf+out_buf_len, "T: %.2f, P: %.2f, h: %.2f\n", amb->temperature, amb->pressure, amb->humidity);
-            //fprintf(log_stream, "%s\t", out_buf);
         }
 
         if(payload.contains & DEV_GPS) {
@@ -146,7 +147,6 @@ void prepare_payload_task(void *pvParameters) {
                 minmea_tofloat(&pos->altitude),
                 pos->fix_quality
             );
-            //fprintf(log_stream, "%s\n", out_buf);
         }
 
         if(payload.contains & DEV_SPS30) {
@@ -172,7 +172,7 @@ void prepare_payload_task(void *pvParameters) {
         if(payload.contains & DEV_NTC) {
             out_buf_len += sprintf(
                 out_buf+out_buf_len,
-                "NTC temperature: %.2f",
+                "NTC temperature: %.2f\n",
                 payload.ntc_temp
             );
         }
@@ -183,8 +183,16 @@ void prepare_payload_task(void *pvParameters) {
             ESP_LOGD(TAG, "Sending payload...");
             lora_send(&payload);
         }
-
-        //fflush(log_stream);
+        
+        if (sending & DEV_SD) {
+            fprintf(tp->pretty_file, out_buf);
+            fprintf(tp->pretty_file, "\n");
+            fflush(tp->pretty_file);
+            test_counter++;
+            if (test_counter >= 5) {
+                fclose(tp->pretty_file);
+            }
+        }
 
         }
 
@@ -196,7 +204,9 @@ void app_main() {
         .pipeline       = xQueueCreate(10, sizeof(Payload_t)),
         .dev_barrier    = xEventGroupCreate(),
         .pm_queue       = xQueueCreate(10, sizeof(struct sps30_measurement)),
-        .ntc_queue      = xQueueCreate(10, sizeof(double))
+        .ntc_queue      = xQueueCreate(10, sizeof(double)),
+        .pretty_file    = NULL,
+        .csv_file       = NULL
     };
 
     if(querying & DEV_SPS30) {
@@ -289,6 +299,8 @@ void app_main() {
             .max_files = 2
         };
         sdcard_init(&conf);
+        task_params.pretty_file = sdcard_get_fd("msr.log");
+        task_params.csv_file    = sdcard_get_fd("msr.csv");
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
