@@ -33,7 +33,7 @@
 #include "lora.h"
 
 // EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
-EventBits_t sending = DEV_SD;
+EventBits_t sending = DEV_SD | DEV_RFM95;
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
 EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;  // TODO: decomment in prod
@@ -284,7 +284,7 @@ void app_main() {
                 .cs = 27
             },
             .format_sd_if_mount_failed = true,
-            .max_files = 1
+            .max_files = 2
         };
         sdcard_init(&conf);
     }

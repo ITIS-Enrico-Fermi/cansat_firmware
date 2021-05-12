@@ -35,6 +35,7 @@ extern "C" {
 #endif
 
 esp_err_t sdcard_init(const struct sdcard_config *conf);
+FILE *sdcard_get_fd(const char *filename);
 
 #ifdef __cplusplus
 }

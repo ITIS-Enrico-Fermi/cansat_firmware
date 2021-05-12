@@ -22,8 +22,6 @@
 
 #define DMA_CHAN            (host.slot)
 
-static FILE* sdcard_fd;
-
 esp_err_t sdcard_init(const struct sdcard_config *conf) {
     sdmmc_card_t *card;
     const char mp[] = MOUNT_POINT;
@@ -106,4 +104,18 @@ esp_err_t sdcard_init(const struct sdcard_config *conf) {
     ESP_LOGI(TAG, "%s", info_buf);
 
     return ESP_OK;
+}
+
+FILE *sdcard_get_fd(const char *filename) {
+    char *abs_filename = malloc(strlen(filename)+strlen(MOUNT_POINT)+2);
+    sprintf(abs_filename, "%s/%s", MOUNT_POINT, filename);
+    
+    ESP_LOGD(TAG, "Opening %s", abs_filename);
+    FILE *f = fopen(abs_filename, "w");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Error opening the file");
+        return;
+    }
+    free(abs_filename);
+    return f;
 }
