@@ -15,6 +15,7 @@
 #include "spi/spi.h"
 
 #include "sdcard.h"
+#include "csv_format.h"
 
 #include "bme280.h"
 #include "bme280_i2c.h"
@@ -120,6 +121,17 @@ void prepare_payload_task(void *pvParameters) {
     Payload_t payload;
     char out_buf[1024];
     int out_buf_len;
+    char csv_buf[1024];
+    int csv_buf_len;
+
+    csv_heading(csv_buf,
+                "time",
+                querying & DEV_GPS ? "gps" : "",
+                querying & DEV_BME280 ? "bme280" : "",
+                querying & DEV_SPS30 ? "sps30" : "",
+                querying & DEV_NTC ? "ntc" : "",
+                NULL
+                );  // TODO: Complete lib and data output in CSV format
 
     while(true) {
         
@@ -127,6 +139,7 @@ void prepare_payload_task(void *pvParameters) {
         
         ESP_LOGI("payload_task", "Received payload");
         out_buf_len = 0;
+        csv_buf_len = 0;
 
         time(&payload.timestamp);  // Offset between CanSat clock and BS start time
         out_buf_len += sprintf(out_buf+out_buf_len, "Time offset: %ld\n", payload.timestamp);
@@ -187,8 +200,13 @@ void prepare_payload_task(void *pvParameters) {
             fprintf(tp->pretty_file, out_buf);  // The stream is buffered, no concerns about delay (?)
             fprintf(tp->pretty_file, "\n");
             fflush(tp->pretty_file);
-            fsync(fileno(tp->pretty_file));
-            // TODO: Close the file somewhere
+            fsync(fileno(tp->pretty_file));  // Performance decreasing
+
+            fprintf(tp->csv_file, csv_buf);
+            fflush(tp->csv_file);
+            fsync(fileno(tp->csv_file));
+
+            // TODO: Close both files somewhere
         }
 
         }
@@ -301,6 +319,6 @@ void app_main() {
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
-    xTaskCreate(prepare_payload_task, "payload", 4096, &task_params, 1, NULL);
+    xTaskCreate(prepare_payload_task, "payload", 8192, &task_params, 1, NULL);
     ESP_LOGD(TAG, "Config finished");
 }
