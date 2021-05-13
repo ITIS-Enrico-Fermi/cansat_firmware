@@ -34,12 +34,15 @@
 
 #include "lora.h"
 
+#include "buzzer.h"
+
 // EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
-EventBits_t sending = DEV_SD | DEV_RFM95;
+EventBits_t sending = DEV_RFM95;
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
 EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;  // TODO: decomment in prod
 
+EventBits_t recovery = DEV_BUZZ;
 
 struct task_parameters {
     QueueHandle_t pipeline;
@@ -292,7 +295,7 @@ void app_main() {
                 .mosi = 23,
                 .sck = 18
             },
-            .freq = 868e6,
+            .freq = 433e6,
             .tp = 17,
             .sf = 12,
             .bw = 500000,
@@ -316,6 +319,17 @@ void app_main() {
         sdcard_init(&conf);
         task_params.pretty_file = sdcard_get_stream("msr.log");
         task_params.csv_file    = sdcard_get_stream("msr.csv");
+    }
+
+    if (recovery & DEV_BUZZ) {
+        buzzer_init(5);
+        // test
+        // for (int i=0; i<5; i++) {
+        //     buzzer_on();
+        //     vTaskDelay(1000/portTICK_RATE_MS);
+        //     buzzer_off();
+        //     vTaskDelay(1000/portTICK_RATE_MS);
+        // }
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);

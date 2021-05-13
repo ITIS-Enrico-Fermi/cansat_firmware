@@ -17,6 +17,6 @@ typedef enum {
     DEV_RFM95   =   (0x01 << 5),
     DEV_FAN     =   (0x01 << 6),
     DEV_SD      =   (0x01 << 7),
-    DEV_BUZZER  =   (0x01 << 8),
+    DEV_BUZZ  =   (0x01 << 8),
     DEV_TOTAL_REGISTERED
 } Device_t;
