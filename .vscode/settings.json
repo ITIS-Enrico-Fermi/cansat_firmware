@@ -21,6 +21,8 @@
         "new": "c",
         "ostream": "c",
         "sstream": "c",
-        "streambuf": "c"
+        "streambuf": "c",
+        "sensirion_common.h": "c",
+        "sensirion_i2c.h": "c"
     },
 }

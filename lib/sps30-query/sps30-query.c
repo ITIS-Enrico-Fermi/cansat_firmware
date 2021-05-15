@@ -24,7 +24,7 @@ void sps30_setup(struct sps30_task_parameters *params) {
 
     ESP_LOGD(TAG, "i2c bus: %d\nsps30_id: %d\n", i2c_bus, sps30_id);
     sensirion_i2c_select_bus(i2c_bus);
-    sensirion_i2c_init();
+    sensirion_i2c_init(params->sda, params->scl);
 }
 
 void sps30_task(void *pvParameters) {

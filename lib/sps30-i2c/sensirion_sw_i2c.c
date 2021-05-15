@@ -28,7 +28,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include "sensirion_arch_config.h"
 #include "sensirion_common.h"
 #include "sensirion_i2c.h"
@@ -171,7 +170,7 @@ int8_t sensirion_i2c_read(uint8_t address, uint8_t* data, uint16_t count) {
     return NO_ERROR;
 }
 
-void sensirion_i2c_init(void) {
+void sensirion_i2c_init(int sda, int scl) {
     sensirion_init_pins();
     sensirion_SCL_in();
     sensirion_SDA_in();

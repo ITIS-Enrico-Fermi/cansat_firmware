@@ -8,6 +8,8 @@ struct sps30_task_parameters {
     void    *pm_queue;
     int     device_id;
     int     i2c_bus;
+    int     sda;
+    int     scl;
 };
 
 // #define SPS30_I2C_ALONE
