@@ -54,7 +54,7 @@ int16_t sensirion_i2c_select_bus(uint8_t bus_idx);
  * Initialize all hard- and software components that are needed for the I2C
  * communication.
  */
-void sensirion_i2c_init(void);
+void sensirion_i2c_init(int sda, int scl);
 
 /**
  * Release all resources initialized by sensirion_i2c_init().

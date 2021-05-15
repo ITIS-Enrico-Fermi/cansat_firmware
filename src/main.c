@@ -232,7 +232,9 @@ void app_main() {
             .dev_barrier = task_params.dev_barrier,
             .pm_queue = task_params.pm_queue,
             .device_id = DEV_SPS30,
-            .i2c_bus = I2C_NUM_0
+            .i2c_bus = I2C_NUM_0,
+            .sda = 21,
+            .scl = 22
         };
         sps30_setup(&sps30_params);
         xTaskCreate(sps30_task, "sps30", 4096, NULL, 1, NULL);
@@ -249,8 +251,8 @@ void app_main() {
             .sync_barrier = task_params.dev_barrier,
             .sync_id = DEV_BME280,
             .i2c = {
-                .sda = GPIO_NUM_5,
-                .scl = GPIO_NUM_0,
+                .sda = 0,
+                .scl = 15,
                 .bus = I2C_NUM_1
             }
         };
@@ -278,7 +280,9 @@ void app_main() {
         struct ntc_config ntc_config = {
             .sync_barrier = task_params.dev_barrier,
             .ntc_queue = task_params.ntc_queue,
-            .device_id = DEV_NTC
+            .device_id = DEV_NTC,
+            .adc_num = ADC_UNIT_2,
+            .adc_ch = ADC_CHANNEL_0
         };
         //Configure ADC on pin D5(?)
         ntc_init(&ntc_config);
@@ -289,8 +293,8 @@ void app_main() {
     if(sending & DEV_RFM95) {
         struct lora_cfg cfg = {
             .spi = {
-                .cs = 15,
-                .rst = 2,
+                .cs = 2,
+                .rst = 26,
                 .miso = 19,
                 .mosi = 23,
                 .sck = 18
@@ -324,12 +328,12 @@ void app_main() {
     if (recovery & DEV_BUZZ) {
         buzzer_init(5);
         // test
-        // for (int i=0; i<5; i++) {
-        //     buzzer_on();
-        //     vTaskDelay(1000/portTICK_RATE_MS);
-        //     buzzer_off();
-        //     vTaskDelay(1000/portTICK_RATE_MS);
-        // }
+        for (int i=0; i<5; i++) {
+            buzzer_on();
+            vTaskDelay(1000/portTICK_RATE_MS);
+            buzzer_off();
+            vTaskDelay(1000/portTICK_RATE_MS);
+        }
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);

@@ -16,6 +16,8 @@ static bool initialized = false;
 static QueueHandle_t queue;
 static EventGroupHandle_t barrier;
 static int id;
+static int adc_num;
+static int adc_ch;
 
 // GPIO4 -> NTC circuit
 // Using ADC 2 CH 0
@@ -47,18 +49,22 @@ int ntc_init(struct ntc_config *config) {
     queue = (QueueHandle_t) config->ntc_queue;
     barrier = (EventGroupHandle_t) config->sync_barrier;
     id = (int) config->device_id;
+    // Be aware: this code is meant to work with ADC 2
+    adc_num = (int)config->adc_num;
+    adc_ch = (int)config->adc_ch;
 
-    // Configuration for ADC 1 CH 7
-    // adc1_config_width(ADC_WIDTH_BIT_12);
-    // adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11);
-
-    // Configuration for ADC 2 CH 0
-    adc2_config_channel_atten(ADC_CHANNEL_0, ADC_ATTEN_DB_11);
-
+    if (adc_num == ADC_UNIT_1) {
+        // Configuration for ADC 1 CH x
+        adc1_config_width(ADC_WIDTH_BIT_12);
+        adc1_config_channel_atten(adc_ch, ADC_ATTEN_DB_11);
+    } else if (adc_num == ADC_UNIT_2) {
+        // Configuration for ADC 2 CH x
+        adc2_config_channel_atten(adc_ch, ADC_ATTEN_DB_11);
+    }
 
     //  Compute calibration curve
     // Get VRef calibration by running: espefuse.py --port /dev/ttyUSB0 adc_info
-    esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_cal);
+    esp_adc_cal_characterize(adc_num, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_cal);
 
     initialized = true;
 
@@ -71,12 +77,15 @@ void ntc_task(void *pvParameters) {
     double temp;
 
     while(true) {
-        // adc_reading = adc1_get_raw(ADC_CHANNEL_7);
-        adc2_get_raw(ADC_CHANNEL_0, ADC_WIDTH_BIT_12, &adc_reading);
+
+        if (adc_num == ADC_UNIT_2) {
+            adc2_get_raw(adc_ch, ADC_WIDTH_BIT_12, &adc_reading);
+        } else if (adc_num == ADC_UNIT_1) {
+            adc_reading = adc1_get_raw(adc_ch);
+            // esp_adc_cal_get_voltage(ADC_CHANNEL_0, &adc_cal, &voltage);
+        }
+
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_cal);
-
-        // esp_adc_cal_get_voltage(ADC_CHANNEL_0, &adc_cal, &voltage);
-
         temp = voltage_to_temperature(voltage);
 
         // ESP_LOGI(TAG, "Raw: %d, voltage: %dmV\n", adc_reading, voltage);
