@@ -11,19 +11,24 @@
 
 #define TAG "SPS30"
 
+static EventGroupHandle_t devices_barrier;
+static QueueHandle_t pm_queue;
+static int sps30_id;
+static int i2c_bus;
+
+void sps30_setup(struct sps30_task_parameters *params) {
+    devices_barrier = params->dev_barrier;
+    pm_queue = params->pm_queue;
+    sps30_id = params->device_id;
+    i2c_bus = params->i2c_bus;
+
+    ESP_LOGD(TAG, "i2c bus: %d\nsps30_id: %d\n", i2c_bus, sps30_id);
+    sensirion_i2c_select_bus(i2c_bus);
+    sensirion_i2c_init();
+}
+
 void sps30_task(void *pvParameters) {
     struct sps30_measurement m;
-
-    struct sps30_task_parameters *tp = (struct sps30_task_parameters *)pvParameters;
-    EventGroupHandle_t devices_barrier = (EventGroupHandle_t)tp->dev_barrier;
-    QueueHandle_t pm_queue = (QueueHandle_t)tp->pm_queue;
-
-    #ifdef SPS30_I2C_ALONE
-    sensirion_i2c_select_bus(I2C_NUM_1);
-    sensirion_i2c_init();
-    #else
-    sensirion_i2c_select_bus(I2C_NUM_0);
-    #endif
 
     while(sps30_probe() != 0) {
         ESP_LOGW(TAG, "Probing failed. Retrying...");
@@ -51,7 +56,8 @@ void sps30_task(void *pvParameters) {
             ESP_LOGW(TAG, "SPS30 Cannot retrieve last measurement");
         } else {
             xQueueSend(pm_queue, &m, 100 / portTICK_RATE_MS);
-            xEventGroupSetBits(devices_barrier, tp->device_id);
+            ESP_LOGD(TAG, "id: %d", sps30_id);
+            xEventGroupSetBits(devices_barrier, sps30_id);
         }
     }
 

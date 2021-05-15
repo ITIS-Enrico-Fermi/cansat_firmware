@@ -5,6 +5,22 @@
         "semphr.h": "c",
         "bme280_i2c.h": "c",
         "lora.h": "c",
-        "event_groups.h": "c"
+        "event_groups.h": "c",
+        "devices.h": "c",
+        "queue.h": "c",
+        "freertos.h": "c",
+        "sps30-query.h": "c",
+        "sdmmc_types.h": "c",
+        "sdspi_host.h": "c",
+        "cstdio": "cpp",
+        "*.ipp": "c",
+        "*.tcc": "c",
+        "exception": "c",
+        "fstream": "c",
+        "iosfwd": "c",
+        "new": "c",
+        "ostream": "c",
+        "sstream": "c",
+        "streambuf": "c"
     },
 }

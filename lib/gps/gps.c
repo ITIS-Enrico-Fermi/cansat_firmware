@@ -44,7 +44,7 @@ GPSDevice_t gps_setup_new(GPSConfig_t *config) {
     // Configure UART parameters
     printf("%d\n", config->uart_controller_port);
     ESP_ERROR_CHECK(uart_param_config(config->uart_controller_port, &uart_config));
-    ESP_ERROR_CHECK(uart_set_pin(config->uart_controller_port, 17, 16, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));  //IMPORTANT: specify pins
+    ESP_ERROR_CHECK(uart_set_pin(config->uart_controller_port, config->uart.tx, config->uart.tx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));  //IMPORTANT: specify pins
     
     const int uart_buffer_size = (1024 * 2);
     // Install UART driver using an event queue here

@@ -12,6 +12,11 @@ Connection BME280 ----------> ESP32
 #include "bme280.h"
 
 typedef struct bme280_data bme280_data_t;
+struct i2c_pins {
+    uint8_t sda;
+    uint8_t scl;
+    uint8_t bus;
+};
 typedef struct {
     uint8_t t_os;
     uint8_t p_os;
@@ -21,10 +26,11 @@ typedef struct {
     int delay;
     EventGroupHandle_t sync_barrier;
     size_t sync_id;
+    struct i2c_pins i2c;
 } bme280_config_t;
 
 //Configuration
-void bme280_i2c_init(); //Enable I2C controller
+void bme280_i2c_init(uint8_t i2c_sda, uint8_t i2c_scl, uint8_t i2c_num); //Enable I2C controller
 void bme280_setup(bme280_config_t *config);    //BME280_OVERSAMP_nX as params and BME280_FILTER_COEFF_n for filter coefficient
 void bme280_set_delay(uint32_t delay_ms);
 
