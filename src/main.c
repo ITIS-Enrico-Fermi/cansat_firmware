@@ -38,6 +38,8 @@
 
 #include "nfa4x10.h"
 
+#define LORA_ID (295)
+
 // EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
 EventBits_t sending = DEV_RFM95;
 
@@ -81,6 +83,8 @@ void query_sensors_task(void *pvParameters) {
         );
 
         if(ready != 0) {
+        
+        payload.id = LORA_ID;
 
         if(ready & DEV_BME280) {
             bme280_data_t ambient = bme280_get_last_measure();
