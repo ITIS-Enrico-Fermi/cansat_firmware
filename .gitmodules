@@ -4,3 +4,6 @@
 [submodule "lib/nfa4x10"]
 	path = lib/nfa4x10
 	url = https://github.com/ITIS-Enrico-Fermi/nfa4x10
+[submodule "lib/lora"]
+	path = lib/lora
+	url = https://github.com/ITIS-Enrico-Fermi/lora
