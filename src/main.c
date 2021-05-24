@@ -36,6 +36,8 @@
 
 #include "buzzer.h"
 
+#include "nfa4x10.h"
+
 // EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
 EventBits_t sending = DEV_RFM95;
 
@@ -43,7 +45,7 @@ EventBits_t sending = DEV_RFM95;
 // EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;  // TODO: decomment in prod
 EventBits_t querying = DEV_NTC | DEV_BME280 | DEV_GPS;
 
-EventBits_t recovery = DEV_BUZZ;
+EventBits_t recovery = DEV_BUZZ | DEV_FAN;
 
 struct task_parameters {
     QueueHandle_t pipeline;
@@ -193,6 +195,14 @@ void prepare_payload_task(void *pvParameters) {
             );
         }
 
+        if (recovery & DEV_FAN) {
+            out_buf_len += sprintf(
+                out_buf+out_buf_len,
+                "Fan speed: %d\n",
+                fan_get_speed()
+            );
+        }
+
         ESP_LOGI(TAG, "%s\n", out_buf);
 
         if(sending & DEV_RFM95) {  // Send payload through LoRa point to point connection
@@ -335,6 +345,32 @@ void app_main() {
             buzzer_off();
             vTaskDelay(1000/portTICK_RATE_MS);
         }
+    }
+
+    if (recovery & DEV_FAN) {
+        struct fan_config conf = {
+            .pwm_pin = 13,
+            .tach_pin = 14
+        };
+        fan_init(&conf);
+
+        xTaskCreate(fan_task, "fan_task", 2048, NULL, 10, NULL);
+        xTaskCreate(fan_count_task, "fan_count_task", 2048, NULL, 10, NULL);
+
+        // fan test
+        fan_set_speed(100);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        // TODO: check if error with fan (blocked)
+        // if (fan_get_speed() < 50) {
+        // error = 1;
+        // // Buzzer must make some beep   
+        // }
+        fan_set_speed(50);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        fan_set_speed(25);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        fan_off();
+        vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
