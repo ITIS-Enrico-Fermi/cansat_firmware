@@ -9,6 +9,8 @@
 #include "i2c.h"
 #include "driver/i2c.h"
 
+SemaphoreHandle_t i2c_mutex = NULL;
+
 void i2c_init() {
     i2c_config_t i2c_conf = {
         .mode = I2C_MODE_MASTER,
@@ -21,4 +23,9 @@ void i2c_init() {
 
     ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &i2c_conf));
     ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+
+    if(!i2c_mutex) {
+        i2c_mutex = xSemaphoreCreateMutex();
+        xSemaphoreGive(i2c_mutex);
+    }
 }
