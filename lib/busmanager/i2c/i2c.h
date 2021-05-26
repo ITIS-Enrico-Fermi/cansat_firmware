@@ -26,6 +26,12 @@ extern SemaphoreHandle_t i2c_mutex;
 
 void i2c_init();
 
+// Thread-safe HAL functions
+int i2c_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length);
+int i2c_writebyte(uint8_t i2c_addr, uint8_t reg_addr, uint8_t reg_data);
+int i2c_read(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length);
+int i2c_readbyte(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data);
+
 #ifdef __cplusplus
 }
 #endif
