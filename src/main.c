@@ -47,7 +47,8 @@ EventBits_t sending = DEV_RFM95;
 // EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;  // TODO: decomment in prod
 EventBits_t querying = DEV_NTC | DEV_BME280 | DEV_GPS;
 
-EventBits_t recovery = DEV_BUZZ | DEV_FAN;
+// EventBits_t recovery = DEV_BUZZ | DEV_FAN;  // TODO: decomment in prod
+EventBits_t recovery = DEV_FAN;
 
 struct task_parameters {
     QueueHandle_t pipeline;
@@ -314,7 +315,7 @@ void app_main() {
                 .mosi = 23,
                 .sck = 18
             },
-            .freq = 433e6,
+            .freq = 868e6,
             .tp = 17,
             .sf = 12,
             .bw = 500000,
