@@ -9,21 +9,23 @@
 #include "i2c.h"
 #include "driver/i2c.h"
 
-static i2c_port_t controller = I2C_NUM_0;
+static i2c_port_t controller = I2C_NUM_1;
 SemaphoreHandle_t i2c_mutex = NULL;
 
-void i2c_init() {
+void i2c_init(int sda, int scl, int bus) {
     i2c_config_t i2c_conf = {
         .mode = I2C_MODE_MASTER,
-        .sda_io_num = GPIO_NUM_4,
+        .sda_io_num = sda,
         .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_io_num = GPIO_NUM_26,  //TODO: change to GPIO_NUM_0
+        .scl_io_num = scl,
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
         .master.clk_speed = 400000
     };
 
     ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &i2c_conf));
     ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+
+    controller = bus;
 
     if(!i2c_mutex) {
         i2c_mutex = xSemaphoreCreateMutex();

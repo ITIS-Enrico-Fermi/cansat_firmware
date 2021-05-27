@@ -24,7 +24,7 @@ extern SemaphoreHandle_t i2c_mutex;
                         func;\
                         xSemaphoreGive(i2c_mutex);
 
-void i2c_init();
+void i2c_init(int sda, int scl, int bus);
 
 // Thread-safe HAL functions
 int i2c_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t length);

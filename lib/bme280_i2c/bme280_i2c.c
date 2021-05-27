@@ -5,6 +5,7 @@
 #include <driver/i2c.h>
 #include "bme280.h"
 #include "bme280_i2c.h"
+#include "i2c/i2c.h"
 
 #define TAG  "BME280 I2C"
 
@@ -129,17 +130,7 @@ void bme280_i2c_init(uint8_t i2c_sda, uint8_t i2c_scl, uint8_t i2c_bus) {
 
     i2c_bus_glob = i2c_bus;
 
-    i2c_config_t i2c_conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = i2c_sda,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_io_num = i2c_scl,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 400000
-    };
-
-    ESP_ERROR_CHECK(i2c_param_config(i2c_bus, &i2c_conf));
-    ESP_ERROR_CHECK(i2c_driver_install(i2c_bus, I2C_MODE_MASTER, 0, 0, 0));
+    i2c_init(i2c_sda, i2c_scl, i2c_bus);
     
 }
 
@@ -167,8 +158,8 @@ void bme280_setup(bme280_config_t *config) {  //Temperature Oversampling, Pressu
     dev = (struct bme280_dev){
         .dev_id = BME280_I2C_ADDR_PRIM,
         .intf = BME280_I2C_INTF,
-        .read = BME280_I2C_bus_read,
-        .write = BME280_I2C_bus_write,
+        .read = i2c_read,
+        .write = i2c_write,
         .delay_ms = BME280_delay_msec,
         .settings = {
             .osr_t = t_os,
