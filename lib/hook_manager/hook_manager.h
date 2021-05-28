@@ -30,5 +30,6 @@ typedef struct {
 } Manager;
 
 Manager createManager(Callback *callbacks);
+Manager getManager();
 
 #endif // !__HOOK_MANAGER_H
