@@ -317,10 +317,10 @@ void app_main() {
                 .mosi = 23,
                 .sck = 18
             },
-            .freq = 433e6,
+            .sf = 9,
+            .bw = 500e3,
             .tp = 17,
-            .sf = 12,
-            .bw = 500000,
+            .freq = 433e6,
             .is_crc_en = true,
         };
         lora_setup(&cfg);
@@ -346,12 +346,14 @@ void app_main() {
     if (recovery & DEV_BUZZ) {
         buzzer_init(5);
         // test
-        for (int i=0; i<5; i++) {
-            buzzer_on();
-            vTaskDelay(1000/portTICK_RATE_MS);
-            buzzer_off();
-            vTaskDelay(1000/portTICK_RATE_MS);
-        }
+
+        // TODO: Decomment in prod
+        // for (int i=0; i<5; i++) {
+        //     buzzer_on();
+        //     vTaskDelay(1000/portTICK_RATE_MS);
+        //     buzzer_off();
+        //     vTaskDelay(1000/portTICK_RATE_MS);
+        // }
     }
 
     if (recovery & DEV_FAN) {
@@ -372,12 +374,15 @@ void app_main() {
         // error = 1;
         // // Buzzer must make some beep   
         // }
-        fan_set_speed(50);
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-        fan_set_speed(25);
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+
+        // TODO: Decomment
+        // fan_set_speed(50);
+        // vTaskDelay(1000/portTICK_PERIOD_MS);
+        // fan_set_speed(25);
+        // vTaskDelay(1000/portTICK_PERIOD_MS);
+        // fan_off();
+        // vTaskDelay(1000/portTICK_PERIOD_MS);
         fan_off();
-        vTaskDelay(1000/portTICK_PERIOD_MS);
     }
 
     xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
