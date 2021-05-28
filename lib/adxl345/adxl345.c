@@ -5,12 +5,19 @@
 #include "driver/gpio.h"
 #include "adxl345.h"
 #include "i2c/i2c.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h"
 
 static const char *TAG = "ADXl345";
 
 // Coefficients to adjust acceleration direction.
 // Change these values based on ADXL345's orientation.
 static int adxl345_coefficients[] = {1, 1, -1};  // x, y, z
+
+static QueueHandle_t __queue;
+static EventGroupHandle_t __sync_barrier;
+static int __id;
 
 static uint8_t get_device_id() {
 	uint8_t val;
@@ -25,6 +32,10 @@ static uint8_t get_device_id() {
  */
 int adxl345_init(struct adxl345_i2c_conf *config) {
 	struct adxl345_i2c_conf __conf = *config;
+
+	__queue = __conf.data_queue;
+	__sync_barrier = __conf.sync_barrier;
+	__id = __conf.device_id;
 
 	i2c_init(__conf.sda, __conf.scl, __conf.bus);
 
@@ -61,4 +72,16 @@ void adxl345_get_data(struct accelerometer_data *result) {
 	result->x = x * ADXL345_MG2G_MULTIPLIER * GRAVITY_EARTH * adxl345_coefficients[0];
 	result->y = y * ADXL345_MG2G_MULTIPLIER * GRAVITY_EARTH * adxl345_coefficients[1];
 	result->z = z * ADXL345_MG2G_MULTIPLIER * GRAVITY_EARTH * adxl345_coefficients[2];
+}
+
+void accelerometer_task(void *param) {
+	struct accelerometer_data data;
+
+	for (;;) {
+		adxl345_get_data(&data);
+		xQueueSend(__queue, &data, 100 / portTICK_PERIOD_MS);
+		xEventGroupSetBits(__sync_barrier, __id);
+
+		vTaskDelay(400 / portTICK_PERIOD_MS);
+	}
 }

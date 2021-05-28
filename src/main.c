@@ -72,6 +72,7 @@ struct task_parameters {
     GPSDevice_t gps_dev;
     QueueHandle_t pm_queue;
     QueueHandle_t ntc_queue;
+    QueueHandle_t accel_queue;
     FILE *pretty_file;
     FILE *csv_file;
 };
@@ -88,8 +89,6 @@ void query_sensors_task(void *pvParameters) {
     GPSDevice_t gps = tp->gps_dev;
 
     Payload_t payload;
-
-    struct accelerometer_data imu_data;
 
     while(true) {
 
@@ -132,18 +131,11 @@ void query_sensors_task(void *pvParameters) {
             payload.ntc_temp = ntc_temp;
         }
 
-        if (querying & DEV_IMU) {  // TODO: Change
-            adxl345_get_data(&imu_data);
-            ESP_LOGI(
-                TAG,
-                "Accel:\n"
-                "\tx: %d"
-                "\ty: %d"
-                "\tz: %d",
-                imu_data.x,
-                imu_data.y,
-                imu_data.z
-            );
+        if (ready & DEV_IMU) {
+            struct accelerometer_data accel_data;
+            xQueueReceive(tp->accel_queue, &accel_data, 1000 / portTICK_PERIOD_MS);
+
+            payload.accelerometer = accel_data;
         }
 
         payload.contains = ready & querying;
@@ -232,6 +224,19 @@ void prepare_payload_task(void *pvParameters) {
             );
         }
 
+        if(payload.contains & DEV_IMU) {
+            out_buf_len += sprintf(
+                out_buf+out_buf_len,
+                "Accelerometer:\n"
+                "\tx: %d"
+                "\ty: %d"
+                "\tz: %d\n",
+                payload.accelerometer.x,
+                payload.accelerometer.y,
+                payload.accelerometer.z
+            );
+        }
+
         if (recovery & DEV_FAN) {
             out_buf_len += sprintf(
                 out_buf+out_buf_len,
@@ -253,9 +258,9 @@ void prepare_payload_task(void *pvParameters) {
             fflush(tp->pretty_file);
             fsync(fileno(tp->pretty_file));  // Performance decreasing
 
-            fprintf(tp->csv_file, csv_buf);
-            fflush(tp->csv_file);
-            fsync(fileno(tp->csv_file));
+            // fprintf(tp->csv_file, csv_buf);
+            // fflush(tp->csv_file);
+            // fsync(fileno(tp->csv_file));
 
             // TODO: Close both files somewhere
         }
@@ -269,8 +274,9 @@ void app_main() {
     task_params = (struct task_parameters){
         .pipeline       = xQueueCreate(10, sizeof(Payload_t)),
         .dev_barrier    = xEventGroupCreate(),
-        .pm_queue       = xQueueCreate(10, sizeof(struct sps30_measurement)),
-        .ntc_queue      = xQueueCreate(10, sizeof(double)),
+        .pm_queue       = xQueueCreate(1, sizeof(struct sps30_measurement)),
+        .ntc_queue      = xQueueCreate(1, sizeof(double)),
+        .accel_queue    = xQueueCreate(1, sizeof(struct accelerometer_data)),
         .pretty_file    = NULL,
         .csv_file       = NULL
     };
@@ -343,9 +349,14 @@ void app_main() {
             .sda = 0,
             .scl = 15,
             .bus = I2C_NUM_1,
-            .range = ADXL345_RANGE_8_G
+            .range = ADXL345_RANGE_8_G,
+
+            .device_id = DEV_IMU,
+            .sync_barrier = task_params.dev_barrier,
+            .data_queue = task_params.accel_queue
         };
         adxl345_init(&conf);
+        xTaskCreate(accelerometer_task, "adxl345", 2048, NULL, 10, NULL);
     }
 
     if(sending & DEV_RFM95) {

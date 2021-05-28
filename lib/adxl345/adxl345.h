@@ -63,9 +63,15 @@ struct adxl345_i2c_conf {
     int scl;
     int bus;
     range_t range;
+
+    void *data_queue;  // QueueHandle_t
+    void *sync_barrier;  // EventGroupHandle_t
+    int device_id;
 };
 
 int adxl345_init(struct adxl345_i2c_conf *config);
 void adxl345_get_data(struct accelerometer_data *result);
+
+void accelerometer_task(void *param);
 
 #endif

@@ -96,7 +96,7 @@ void ntc_task(void *pvParameters) {
         xQueueSend(queue, &temp, 100 / portTICK_PERIOD_MS);
         xEventGroupSetBits(barrier, id);        
 
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(400 / portTICK_RATE_MS);
     }
 
     vTaskDelete(NULL);
