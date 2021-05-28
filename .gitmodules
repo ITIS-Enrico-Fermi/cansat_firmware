@@ -7,3 +7,6 @@
 [submodule "lib/lora"]
 	path = lib/lora
 	url = https://github.com/ITIS-Enrico-Fermi/lora
+[submodule "lib/IMU"]
+	path = lib/IMU
+	url = https://github.com/ITIS-Enrico-Fermi/IMU
