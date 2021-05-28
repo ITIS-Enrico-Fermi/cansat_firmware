@@ -38,6 +38,8 @@
 
 #include "nfa4x10.h"
 
+#include "hook_manager.h"
+
 #define LORA_ID (295)
 
 EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod

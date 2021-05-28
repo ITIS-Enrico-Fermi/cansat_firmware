@@ -1,3 +1,10 @@
+/**
+ * @file hook_manager.c
+ * @author CanSat team
+ * @date 28 May 2021
+ * @brief General-purpose event manager based on js-like hooks.
+ */
+
 #include "controller.h"
 
 static Callback *__callbacks;
@@ -25,8 +32,6 @@ Manager createManager(Callback *callbacks) {
 Manager getManager() {
     return { .invoke = invoke };
 }
-
-
 
 Callback *callback(int i) {
     return __callbacks + i;

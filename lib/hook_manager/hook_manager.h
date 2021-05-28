@@ -1,5 +1,12 @@
-#ifndef HOOK_MANAGER_H
-#define HOOK_MANAGER_H
+/**
+ * @file hook_manager.h
+ * @author CanSat team
+ * @date 28 May 2021
+ * @brief General-purpose event manager based on js-like hooks.
+ */
+
+#ifndef __HOOK_MANAGER_H
+#define __HOOK_MANAGER_H
 
 #define len(x) sizeof(x)/sizeof(*x)
 
@@ -24,4 +31,4 @@ typedef struct {
 
 Manager createManager(Callback *callbacks);
 
-#endif // !HOOK_MANAGER_H
+#endif // !__HOOK_MANAGER_H
