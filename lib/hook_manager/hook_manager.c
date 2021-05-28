@@ -5,7 +5,7 @@
  * @brief General-purpose event manager based on js-like hooks.
  */
 
-#include "controller.h"
+#include "hook_manager.h"
 
 static Callback *__callbacks;
 static int __callbacksLen;
@@ -17,20 +17,20 @@ void invoke(Event e, void *p) {
     for (int i = 0; i < __callbacksLen; i++) {
         Callback *c = callback(i);
 
-        if (c->action && c->event == event) {
+        if (c->action && c->event == e) {
             c->action(p);
         }
     }
 }
 
-Manager createManager(Callback *callbacks) {
+Manager createManager(Callback *callbacks, int count) {
     __callbacks = callbacks;
-    __callbacksLen = len(callbacks);
-    return { .invoke = invoke };
+    __callbacksLen = count;
+    return (Manager) { .invoke = invoke };
 }
 
 Manager getManager() {
-    return { .invoke = invoke };
+    return (Manager) { .invoke = invoke };
 }
 
 Callback *callback(int i) {
