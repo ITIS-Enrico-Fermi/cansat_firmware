@@ -2,7 +2,14 @@
  * 
  * @file main.c
  * @author sCanSati Team 2020-2021, ITIS E. Fermi, Modena
- * 
+ *      Bendin Andrea
+ *      Biolchini Marco
+ *      Corradini Giulio
+ *      Gabbi Giulio
+ *      Mecatti Francesco
+ *      Muratori Alessandro
+ *      
+ *      Prof. Prandini Annamaria
  * 
  */
 
