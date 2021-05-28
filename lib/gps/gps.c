@@ -2,7 +2,7 @@
 //  gps.c
 //  
 //
-//  Created by Giulio Corradini on 26/01/2020.
+//  Created by sCanSati Team 2020-2021, ITIS E. Fermi, Modena on 26/01/2020.
 //
 
 #include "gps.h"

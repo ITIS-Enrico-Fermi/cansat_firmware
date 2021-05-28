@@ -26,6 +26,8 @@
         "sensirion_i2c.h": "c",
         "buzzer.h": "c",
         "functional": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "adc.h": "c",
+        "sps30.h": "c"
     },
 }

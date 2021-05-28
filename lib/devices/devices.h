@@ -3,7 +3,7 @@
  * 
  *  Header file for device registration, configuration and management.
  * 
- *  by Giulio Corradini
+ *  by sCanSati Team 2020-2021, ITIS E. Fermi, Modena
  *  (c) Cansat Firmware 2021
  * 
  */

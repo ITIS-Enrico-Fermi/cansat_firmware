@@ -1,6 +1,6 @@
 /**
  * @file hook_manager.h
- * @author CanSat team
+ * @author sCanSati Team 2020-2021, ITIS E. Fermi, Modena
  * @date 28 May 2021
  * @brief General-purpose event manager based on js-like hooks.
  */

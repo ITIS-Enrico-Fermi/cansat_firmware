@@ -1,7 +1,7 @@
 /*
  *  i2c.c
  * 
- *  by Giulio Corradini
+ *  by sCanSati Team 2020-2021, ITIS E. Fermi, Modena
  *  Cansat Firmware 2021
  * 
  */
@@ -10,6 +10,7 @@
 #include "driver/i2c.h"
 
 static i2c_port_t controller = I2C_NUM_1;
+static uint8_t initialized_controllers = 0; 
 SemaphoreHandle_t i2c_mutex = NULL;
 
 void i2c_init(int sda, int scl, int bus) {
@@ -22,10 +23,12 @@ void i2c_init(int sda, int scl, int bus) {
         .master.clk_speed = 400000
     };
 
-    ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &i2c_conf));
-    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+    ESP_ERROR_CHECK(i2c_param_config(bus, &i2c_conf));
+    if ( !(initialized_controllers & 0x01 << bus) )
+        ESP_ERROR_CHECK(i2c_driver_install(bus, I2C_MODE_MASTER, 0, 0, 0));
 
     controller = bus;
+    initialized_controllers |= (0x01 << controller);
 
     if(!i2c_mutex) {
         i2c_mutex = xSemaphoreCreateMutex();
@@ -56,7 +59,7 @@ int i2c_write(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t le
     i2c_master_write(cmd, reg_data, length, true);
     i2c_master_stop(cmd);
 
-    xSemaphoreTake(i2c_mutex, 1000 / portTICK_RATE_MS);
+    xSemaphoreTake(i2c_mutex, 1000 / portTICK_RATE_MS);  // Thread-safe
     err = i2c_master_cmd_begin(controller, cmd, 1000 / portTICK_RATE_MS);
     xSemaphoreGive(i2c_mutex);
 
@@ -95,7 +98,7 @@ int i2c_read(uint8_t i2c_addr, uint8_t reg_addr, uint8_t *reg_data, uint16_t len
     i2c_master_stop(cmd);
 
         
-    xSemaphoreTake(i2c_mutex, 1000 / portTICK_RATE_MS);
+    xSemaphoreTake(i2c_mutex, 1000 / portTICK_RATE_MS);  // Thread-safe
     err = i2c_master_cmd_begin(controller, cmd, 1000 / portTICK_RATE_MS);
     xSemaphoreGive(i2c_mutex);
 

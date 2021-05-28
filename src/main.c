@@ -1,3 +1,11 @@
+/**
+ * 
+ * @file main.c
+ * @author sCanSati Team 2020-2021, ITIS E. Fermi, Modena
+ * 
+ * 
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -33,10 +41,9 @@
 #include "ntc.h"
 
 #include "lora.h"
-
 #include "buzzer.h"
-
 #include "nfa4x10.h"
+#include "adxl345.h"
 
 #include "hook_manager.h"
 
@@ -46,7 +53,7 @@ EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
 // EventBits_t sending = DEV_RFM95;
 
 //  Enabled devices/sensors (e.g. DEV_BME280 | DEV_GPS)
-EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS;  // TODO: decomment in prod
+EventBits_t querying = DEV_NTC | DEV_SPS30 | DEV_BME280 | DEV_GPS | DEV_IMU;  // TODO: decomment in prod
 // EventBits_t querying = DEV_NTC | DEV_BME280 | DEV_GPS;
 
 EventBits_t recovery = DEV_BUZZ | DEV_FAN;  // TODO: decomment in prod
@@ -74,6 +81,8 @@ void query_sensors_task(void *pvParameters) {
     GPSDevice_t gps = tp->gps_dev;
 
     Payload_t payload;
+
+    struct accelerometer_data imu_data;
 
     while(true) {
 
@@ -114,6 +123,20 @@ void query_sensors_task(void *pvParameters) {
             xQueueReceive(tp->ntc_queue, &ntc_temp, 1000 / portTICK_PERIOD_MS);
 
             payload.ntc_temp = ntc_temp;
+        }
+
+        if (querying & DEV_IMU) {  // TODO: Change
+            adxl345_get_data(&imu_data);
+            ESP_LOGI(
+                TAG,
+                "Accel:\n"
+                "\tx: %d"
+                "\ty: %d"
+                "\tz: %d",
+                imu_data.x,
+                imu_data.y,
+                imu_data.z
+            );
         }
 
         payload.contains = ready & querying;
@@ -306,6 +329,16 @@ void app_main() {
         ntc_init(&ntc_config);
 
         xTaskCreate(ntc_task, "ntc", 2048, NULL, 10, NULL);
+    }
+
+    if (querying & DEV_IMU) {
+        struct adxl345_i2c_conf conf = {
+            .sda = 0,
+            .scl = 15,
+            .bus = I2C_NUM_1,
+            .range = ADXL345_RANGE_8_G
+        };
+        adxl345_init(&conf);
     }
 
     if(sending & DEV_RFM95) {

@@ -1,6 +1,6 @@
 /**
  * @file sdcard.h
- * @author Scansati Team 2021
+ * @author sCanSati Team 2020-2021, ITIS E. Fermi, Modena
  * @date 12 May 2021
  * @brief Tiny library for sd card (SDSPI) initialization and management
 */

@@ -1,7 +1,7 @@
 /*
  *  i2c.h
  * 
- *  by Giulio Corradini
+ *  by sCanSati Team 2020-2021, ITIS E. Fermi, Modena
  *  Cansat Firmware 2021
  * 
  *  Part of the bus manager HAL. Handles config of I2C bus

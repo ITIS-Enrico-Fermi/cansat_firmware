@@ -1,6 +1,6 @@
 /**
  * @file buzzer.h
- * @author Scansati Team 2021
+ * @author sCanSati Team 2020-2021, ITIS E. Fermi, Modena
  * @date 13 May 2021
  * @brief Tools to manage buzzer
  */
