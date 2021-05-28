@@ -18,4 +18,10 @@ typedef struct {
     Action action;
 } Callback;
 
+typedef struct {
+    void (*invoke)(Event event, void *param);
+} Manager;
+
+Manager createManager(Callback *callbacks);
+
 #endif // !HOOK_MANAGER_H

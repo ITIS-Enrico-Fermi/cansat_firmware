@@ -25,7 +25,7 @@ static int adc_ch;
 /* tools */
 
 // voltage at B (10kohm)
-#define V_NOD   (648)
+#define V_NOD   (432)
 // temperature at B (25°C in K)
 #define T_NOD   (298.15)
 #define B       (3976)
@@ -86,6 +86,7 @@ void ntc_task(void *pvParameters) {
         }
 
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, &adc_cal);
+        // ESP_LOGI(TAG, "Voltage: %d", voltage);
         temp = voltage_to_temperature(voltage);
 
         // ESP_LOGI(TAG, "Raw: %d, voltage: %dmV\n", adc_reading, voltage);

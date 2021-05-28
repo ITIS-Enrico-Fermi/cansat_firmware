@@ -23,6 +23,8 @@
         "sstream": "c",
         "streambuf": "c",
         "sensirion_common.h": "c",
-        "sensirion_i2c.h": "c"
+        "sensirion_i2c.h": "c",
+        "buzzer.h": "c",
+        "functional": "c"
     },
 }
