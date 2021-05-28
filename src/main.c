@@ -40,7 +40,7 @@
 
 #include "hook_manager.h"
 
-#define LORA_ID (295)
+#define LORA_ID (245)  // 65 90 90 to ASCII
 
 EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
 // EventBits_t sending = DEV_RFM95;
