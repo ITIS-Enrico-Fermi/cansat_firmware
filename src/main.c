@@ -54,6 +54,8 @@
 
 #include "hook_manager.h"
 
+#include "math.h"
+
 #define LORA_ID (245)  // 65 90 90 to ASCII
 
 EventBits_t sending = DEV_SD | DEV_RFM95;  // TODO: decomment in prod
@@ -78,7 +80,103 @@ struct task_parameters {
 };
 struct task_parameters task_params;
 
+static double first_pressure;
 
+typedef enum {
+    START = 0,
+    INIT,  // Init sensors, fan, buzzer, measure pressure
+    WAITING_LAUNCH,  // Wait until accel_z > 2
+    LAUNCHED,  // Start pressure measurement every 5 secs
+    ALTITUDE_OVER_500M,
+    FALLING,  // Fan on
+    ALTITUDE_SUB_200M,  // Fan off
+    LANDED,  // Buzzer on
+} State;
+
+static State state = START;
+
+static double current_alt, old_alt;
+static struct accelerometer_data old_accel;
+static int cont = 0;
+
+static double p0 = 0.0;
+
+static double alt_from_press(float press) {
+    return (44330.0 * (1.0 - pow(press / p0, 0.19029495)));
+}
+
+static bool accel_equal(struct accelerometer_data *first, struct accelerometer_data *second) {
+    return (first->x == second->x) && (first->y == second->y) && (first->z == second->z);
+}
+
+void finite_state_machine(Payload_t *p) {  // Called each second
+    static struct task_parameters *tp = &task_params;
+    switch (state) {
+        case START:
+            fprintf(tp->pretty_file, "START\n");
+            if (cont >= 5)
+                state = INIT;
+            cont++;
+            break;
+        case INIT:
+            fprintf(tp->pretty_file, "INIT\n");
+            p0 = p->ambient.pressure;
+            ESP_LOGD("fsm", "first_alt: %f", p0);
+            state = WAITING_LAUNCH;
+            break;
+        case WAITING_LAUNCH:
+            fprintf(tp->pretty_file, "WAITING_LAUNCH\n");
+            ESP_LOGD("fsm", "waiting launch, accel: %d", p->accelerometer.z);
+            if (p->accelerometer.z > 20) {
+                state = LAUNCHED;
+            }
+            break;
+        case LAUNCHED:
+            fprintf(tp->pretty_file, "LAUNCHED\n");
+            ESP_LOGD("fsm", "launched, delta press: %lf", alt_from_press(p->ambient.pressure));
+            if (alt_from_press(p->ambient.pressure) > 500) {
+                state = ALTITUDE_OVER_500M;
+                old_alt = alt_from_press(p->ambient.pressure);
+            }
+            break;
+        case ALTITUDE_OVER_500M:
+            fprintf(tp->pretty_file, "ALTITUDE_OVER_500M\n");
+            ESP_LOGD("fsm", "alt over 500m");
+            current_alt = alt_from_press(p->ambient.pressure);
+            if (old_alt > current_alt+1) {
+                fan_set_speed(100);
+                state = FALLING;
+                old_alt = current_alt;
+            }
+            old_alt = current_alt;
+            break;
+        case FALLING:
+            fprintf(tp->pretty_file, "FALLING\n");
+            ESP_LOGD("fsm", "falling");
+            if (alt_from_press(p->ambient.pressure) < 200) {
+                fan_off();
+                state = ALTITUDE_SUB_200M;
+                old_accel = p->accelerometer;
+            }
+            break;
+        case ALTITUDE_SUB_200M:
+            fprintf(tp->pretty_file, "ALTITUDE_SUB_200M\n");
+            ESP_LOGD("fsm", "sub 200m");
+            if (accel_equal(&old_accel, &(p->accelerometer))) {
+                xTaskCreate(buzzzer_beeper_task, "buzzer beeper", 2048, NULL, 10, NULL);
+                state = LANDED;
+            }
+            old_accel = p->accelerometer;
+            break;
+        case LANDED:
+            fprintf(tp->pretty_file, "LANDED\n");
+            break;
+        default:
+            ESP_LOGD("fsm", "unknown state");
+            state = LANDED;
+            break;
+    }
+}
 
 void query_sensors_task(void *pvParameters) {
 
@@ -149,7 +247,6 @@ void query_sensors_task(void *pvParameters) {
 
 
 void prepare_payload_task(void *pvParameters) {
-
     struct task_parameters *tp = (struct task_parameters *)pvParameters;
     QueueHandle_t pipeline = tp->pipeline;
 
@@ -251,6 +348,8 @@ void prepare_payload_task(void *pvParameters) {
             ESP_LOGD(TAG, "Sending payload...");
             lora_send(&payload);
         }
+
+        finite_state_machine(&payload);
         
         if (sending & DEV_SD) {
             fprintf(tp->pretty_file, out_buf);  // The stream is buffered, no concerns about delay (?)
@@ -349,7 +448,7 @@ void app_main() {
             .sda = 0,
             .scl = 15,
             .bus = I2C_NUM_1,
-            .range = ADXL345_RANGE_8_G,
+            .range = ADXL345_RANGE_16_G,
 
             .device_id = DEV_IMU,
             .sync_barrier = task_params.dev_barrier,
@@ -369,7 +468,7 @@ void app_main() {
                 .sck = 18
             },
             .sf = 9,
-            .bw = 500e3,
+            .bw = 250e3,
             .tp = 17,
             .freq = 433e6,
             .is_crc_en = true,

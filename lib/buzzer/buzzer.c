@@ -1,4 +1,6 @@
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static int pin;
 
@@ -19,4 +21,13 @@ void buzzer_on() {
 
 void buzzer_off() {
     gpio_set_level(pin, 0);
+}
+
+void buzzzer_beeper_task(void *pv) {
+    for (;;) {
+        buzzer_on();
+        vTaskDelay(500 / portTICK_RATE_MS);
+        buzzer_off();
+        vTaskDelay(500 / portTICK_RATE_MS);
+    }
 }
