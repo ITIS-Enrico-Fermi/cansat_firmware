@@ -6,6 +6,7 @@
  */
 
 #include "hook_manager.h"
+#include "esp_log.h"
 
 static Callback *__callbacks;
 static int __callbacksLen;
@@ -14,10 +15,12 @@ static void invoke(Event e, void *p);
 static Callback *callback(int index);
 
 void invoke(Event e, void *p) {
+    ESP_LOGI("invoke", "callback_len: %d", __callbacksLen);
     for (int i = 0; i < __callbacksLen; i++) {
         Callback *c = callback(i);
 
-        if (c->action && c->event == e) {
+        if (c && c->action && c->event == e) {
+            ESP_LOGI("invoke", "invoked");
             c->action(p);
         }
     }

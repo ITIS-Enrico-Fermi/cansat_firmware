@@ -28,6 +28,10 @@
         "functional": "c",
         "time.h": "c",
         "adc.h": "c",
-        "sps30.h": "c"
+        "sps30.h": "c",
+        "hook_manager.h": "c",
+        "adxl345.h": "c",
+        "esp_log.h": "c",
+        "task.h": "c"
     },
 }

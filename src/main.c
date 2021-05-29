@@ -53,6 +53,7 @@
 #include "adxl345.h"
 
 #include "hook_manager.h"
+#include "controller.h"
 
 #define LORA_ID (245)  // 65 90 90 to ASCII
 
@@ -265,13 +266,55 @@ void prepare_payload_task(void *pvParameters) {
             // TODO: Close both files somewhere
         }
 
+        controller_send_measurements(&payload);
+
         }
 
     }
 }
 
+void self_test(void *_pv) {
+    ESP_LOGI("self_test", "self test done");
+    for (int i=0; i<5; i++) {
+        buzzer_on();
+        vTaskDelay(500/portTICK_RATE_MS);
+        buzzer_off();
+        vTaskDelay(500/portTICK_RATE_MS);
+    }
+
+    fan_set_speed(100);
+    vTaskDelay(1000/portTICK_PERIOD_MS);
+    fan_set_speed(50);
+    vTaskDelay(1000/portTICK_PERIOD_MS);
+    fan_off();
+    vTaskDelay(1000/portTICK_PERIOD_MS);
+    ESP_LOGI("self_test", "self test done finito");
+}
+
+void on_launch(void *_pv) {
+    fprintf(task_params.pretty_file, "LAUNCHED\n");
+    fflush(task_params.pretty_file);
+    fsync(fileno(task_params.pretty_file));  // Performance decreasing
+}
+
+void fan_on(void *_pv) {
+    fan_set_speed(100);
+}
+
+void on_landing(void *_pv) {
+    fprintf(task_params.pretty_file, "LANDING\n");
+    fflush(task_params.pretty_file);
+    fsync(fileno(task_params.pretty_file));  // Performance decreasing
+}
+
+void on_ground(void *_pv) {
+    buzzer_on();
+    fclose(task_params.pretty_file);
+    fclose(task_params.csv_file);    
+}
+
 void app_main() {
-    task_params = (struct task_parameters){
+       task_params = (struct task_parameters){
         .pipeline       = xQueueCreate(10, sizeof(Payload_t)),
         .dev_barrier    = xEventGroupCreate(),
         .pm_queue       = xQueueCreate(1, sizeof(struct sps30_measurement)),
@@ -280,11 +323,14 @@ void app_main() {
         .pretty_file    = NULL,
         .csv_file       = NULL
     };
-
+    
+    ESP_LOGI(TAG, "MAIN");
+    ESP_LOGI("init_all", "init_all entered");
+    struct task_parameters tp = task_params;
     if(querying & DEV_SPS30) {
         struct sps30_task_parameters sps30_params = {
-            .dev_barrier = task_params.dev_barrier,
-            .pm_queue = task_params.pm_queue,
+            .dev_barrier = tp.dev_barrier,
+            .pm_queue = tp.pm_queue,
             .device_id = DEV_SPS30,
             .i2c_bus = I2C_NUM_0,
             .sda = 21,
@@ -302,7 +348,7 @@ void app_main() {
             .filter_k = BME280_FILTER_COEFF_8,
             .parent_task = xTaskGetCurrentTaskHandle(),
             .delay = 1000,
-            .sync_barrier = task_params.dev_barrier,
+            .sync_barrier = tp.dev_barrier,
             .sync_id = DEV_BME280,
             .i2c = {
                 .sda = 0,
@@ -319,21 +365,21 @@ void app_main() {
             .uart_controller_port = 2,
             .gps_status = xEventGroupCreate(),
             .parent_task = xTaskGetCurrentTaskHandle(),
-            .sync_barrier = task_params.dev_barrier,
+            .sync_barrier = tp.dev_barrier,
             .sync_id = DEV_GPS,
             .uart = {
                 .tx = 17,
                 .rx = 16
             }
         };
-        task_params.gps_dev = gps_setup_new(&gps_config);
-        xTaskCreate(gps_task, "gps", 2048, task_params.gps_dev, 10, NULL);
+        tp.gps_dev = gps_setup_new(&gps_config);
+        xTaskCreate(gps_task, "gps", 2048, tp.gps_dev, 10, NULL);
     }
 
     if(querying & DEV_NTC) {
         struct ntc_config ntc_config = {
-            .sync_barrier = task_params.dev_barrier,
-            .ntc_queue = task_params.ntc_queue,
+            .sync_barrier = tp.dev_barrier,
+            .ntc_queue = tp.ntc_queue,
             .device_id = DEV_NTC,
             .adc_num = ADC_UNIT_2,
             .adc_ch = ADC_CHANNEL_0
@@ -352,8 +398,8 @@ void app_main() {
             .range = ADXL345_RANGE_8_G,
 
             .device_id = DEV_IMU,
-            .sync_barrier = task_params.dev_barrier,
-            .data_queue = task_params.accel_queue
+            .sync_barrier = tp.dev_barrier,
+            .data_queue = tp.accel_queue
         };
         adxl345_init(&conf);
         xTaskCreate(accelerometer_task, "adxl345", 2048, NULL, 10, NULL);
@@ -390,21 +436,13 @@ void app_main() {
             .max_files = 2
         };
         sdcard_init(&conf);
-        task_params.pretty_file = sdcard_get_stream("msr.log");
-        task_params.csv_file    = sdcard_get_stream("msr.csv");
+        tp.pretty_file = sdcard_get_stream("msr.log");
+        tp.csv_file    = sdcard_get_stream("msr.csv");
     }
 
     if (recovery & DEV_BUZZ) {
         buzzer_init(5);
-        // test
-
-        // TODO: Decomment in prod
-        // for (int i=0; i<5; i++) {
-        //     buzzer_on();
-        //     vTaskDelay(1000/portTICK_RATE_MS);
-        //     buzzer_off();
-        //     vTaskDelay(1000/portTICK_RATE_MS);
-        // }
+        buzzer_off();
     }
 
     if (recovery & DEV_FAN) {
@@ -416,27 +454,21 @@ void app_main() {
 
         xTaskCreate(fan_task, "fan_task", 2048, NULL, 10, NULL);
         xTaskCreate(fan_count_task, "fan_count_task", 2048, NULL, 10, NULL);
-
-        // fan test
-        fan_set_speed(100);
-        vTaskDelay(1000/portTICK_PERIOD_MS);
-        // TODO: check if error with fan (blocked)
-        // if (fan_get_speed() < 50) {
-        // error = 1;
-        // // Buzzer must make some beep   
-        // }
-
-        // TODO: Decomment
-        // fan_set_speed(50);
-        // vTaskDelay(1000/portTICK_PERIOD_MS);
-        // fan_set_speed(25);
-        // vTaskDelay(1000/portTICK_PERIOD_MS);
-        // fan_off();
-        // vTaskDelay(1000/portTICK_PERIOD_MS);
-        fan_off();
     }
 
-    xTaskCreate(query_sensors_task, "query", 2048, &task_params, 1, NULL);
-    xTaskCreate(prepare_payload_task, "payload", 8192, &task_params, 1, NULL);
+    xTaskCreate(query_sensors_task, "query", 2048, &tp, 1, NULL);
+    xTaskCreate(prepare_payload_task, "payload", 8192, &tp, 1, NULL);
     ESP_LOGD(TAG, "Config finished");
+    
+    static Callback cb[] = {
+        {ON_LAUNCH, on_launch},
+        {ON_MAX_HEIGHT, fan_on},
+        {ON_LANDING, on_landing},
+        {ON_NEAR_GROUND, fan_off},
+        {ON_GROUND, on_ground}
+    };
+
+    Manager m = createManager(cb, 7);
+    controller_init(&m, &task_params);
+    xTaskCreate(controller_task, "controller", 4096, NULL, 1, NULL);
 }
