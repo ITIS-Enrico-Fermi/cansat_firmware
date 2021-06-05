@@ -52,9 +52,6 @@
 #include "nfa4x10.h"
 #include "adxl345.h"
 
-#include "hook_manager.h"
-#include "controller.h"
-
 #include "math.h"
 
 #define LORA_ID (245)  // 65 90 90 to ASCII
@@ -80,8 +77,6 @@ struct task_parameters {
     FILE *csv_file;
 };
 struct task_parameters task_params;
-
-static double first_pressure;
 
 typedef enum {
     START = 0,
@@ -364,9 +359,7 @@ void prepare_payload_task(void *pvParameters) {
 
             // TODO: Close both files somewhere
         }
-
-        controller_send_measurements(&payload);
-
+        
         }
 
     }
@@ -558,16 +551,4 @@ void app_main() {
     xTaskCreate(query_sensors_task, "query", 2048, &tp, 1, NULL);
     xTaskCreate(prepare_payload_task, "payload", 8192, &tp, 1, NULL);
     ESP_LOGD(TAG, "Config finished");
-    
-    static Callback cb[] = {
-        {ON_LAUNCH, on_launch},
-        {ON_MAX_HEIGHT, fan_on},
-        {ON_LANDING, on_landing},
-        {ON_NEAR_GROUND, fan_off},
-        {ON_GROUND, on_ground}
-    };
-
-    Manager m = createManager(cb, 7);
-    controller_init(&m, &task_params);
-    xTaskCreate(controller_task, "controller", 4096, NULL, 1, NULL);
 }
