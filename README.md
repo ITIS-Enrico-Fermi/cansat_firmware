@@ -1,10 +1,10 @@
 # Cansat Firmware
 
 <p align="center">
-  <img width="70%" src="docs/logo.png" />
+  <img width="50%" src="docs/logo.png" />
 </p>
 
-_Awarded Highest Technical Achievement at European Cansat Competition 2021_
+_Awarded Highest Technical Achievement in the European Cansat Competition of 2021_
 
 ## 1. Overview
 
