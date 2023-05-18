@@ -17,8 +17,8 @@ written for each device connected to the ESP32.
 
 This repository only contains the firmware, for more details about the project visit
 [ITIS Fermi | CanSat 2021](https://www.fermi-mo.edu.it/pagine/cansat-2021),
-and check out gathered data from the National Flight Competition at
-[Github | CanSatData](https://github.com/ITIS-Enrico-Fermi/CanSatData)
+and check out gathered data from the National Flight Competition at the project main repository
+[Github | Cansat2021](https://github.com/ITIS-Enrico-Fermi/Cansat2021)
 
 ### 1.a. Devices
 
